@@ -25,16 +25,17 @@
             overflow: hidden;
         }
 
+        /* --- SÉCURITÉ --- */
         #auth-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #1d1d1f; display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             z-index: 10000; color: white; transition: opacity 0.3s;
         }
-
         .auth-box { background: #2c2c2e; padding: 25px; border-radius: 16px; text-align: center; width: 80%; max-width: 300px; }
         .auth-input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #444; background: #1c1c1e; color: white; font-size: 1.2rem; text-align: center; box-sizing: border-box; }
 
+        /* --- HEADER --- */
         .header {
             background-color: var(--card);
             padding-top: env(safe-area-inset-top); 
@@ -42,24 +43,42 @@
             display: flex; align-items: center; justify-content: space-between;
             box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 50; flex-shrink: 0;
         }
-
         .header input { border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 1rem; width: 100%; max-width: 180px; }
         .header-btn { background: none; border: none; font-size: 1.5rem; padding: 5px 10px; cursor: pointer; }
         .header-btn.primary { color: var(--primary); font-weight: bold; }
         .header-btn.disabled { opacity: 0.3; pointer-events: none; }
 
-        #workspace-wrapper { flex-grow: 1; position: relative; overflow: auto; -webkit-overflow-scrolling: touch; z-index: 1; }
-        #workspace-container { position: relative; min-height: 100%; min-width: 100%; background-image: radial-gradient(#ccc 1px, transparent 1px); background-size: 20px 20px; touch-action: none; width: 2500px; height: 2500px; }
+        /* --- WORKSPACE & ZOOM --- */
+        #workspace-wrapper { 
+            flex-grow: 1; 
+            position: relative; 
+            overflow: auto; /* Permet le scroll naturel (pan) */
+            -webkit-overflow-scrolling: touch; 
+            z-index: 1; 
+            background-color: var(--bg);
+        }
+        
+        #workspace-container { 
+            position: relative; 
+            /* On définit une grande zone pour dessiner */
+            width: 3000px; 
+            height: 3000px; 
+            background-image: radial-gradient(#ccc 1px, transparent 1px); 
+            background-size: 20px 20px; 
+            touch-action: none; 
+            transform-origin: 0 0; /* Le zoom part du coin haut gauche */
+            transition: transform 0.1s ease-out; /* Petit lissage du zoom */
+        }
+        
         #connections-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
+        /* --- BOITIER EQUIPEMENT --- */
         .node {
             position: absolute; background: var(--card); border: 2px solid #ddd; border-radius: 10px;
             padding: 10px; width: 160px; display: flex; flex-direction: column; align-items: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 2; user-select: none; 
-            /* Important pour iPhone : empêche le scroll natif sur l'objet */
             touch-action: none; 
         }
-
         .node.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.2); z-index: 10; }
         .node .icon { margin-bottom: 5px; height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; }
         .node-image { max-width: 90%; max-height: 100%; object-fit: contain; }
@@ -67,6 +86,40 @@
         .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
         .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
 
+        /* --- UI FLOTTANTE (Poubelle & Zoom) --- */
+        .floating-ui {
+            position: fixed;
+            bottom: 30px;
+            display: flex;
+            align-items: center;
+            z-index: 250;
+        }
+
+        .trash-zone { left: 20px; }
+        .zoom-zone { right: 20px; gap: 10px; flex-direction: column; }
+
+        .fab-btn {
+            width: 55px; height: 55px;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            font-size: 24px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .fab-btn:active { transform: scale(0.95); }
+
+        /* Style Poubelle */
+        #trash-btn { background: var(--danger); color: white; display: none; }
+        #trash-btn.show { display: flex; animation: popIn 0.2s; }
+
+        /* Style Zoom */
+        .zoom-btn { background: white; color: #333; font-weight: bold; font-size: 28px; }
+
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+
+        /* --- MODALE --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; z-index: 200; }
         .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; padding-bottom: 40px; animation: slideUp 0.3s ease-out; max-height: 85vh; overflow-y: auto; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -78,39 +131,6 @@
         .btn-primary { background: var(--primary); color: white; }
         .btn-cancel { background: #E5E5EA; color: black; margin-top: 5px;}
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; }
-        
-        /* Floating delete button */
-        .floating-delete-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 20px; /* Mis à gauche comme demandé initialement */
-            width: 60px;
-            height: 60px;
-            background: var(--danger);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 250;
-            transition: transform 0.2s, opacity 0.2s;
-        }
-
-        .floating-delete-btn.show {
-            display: flex;
-            animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        
-        @keyframes popIn {
-            from { transform: scale(0); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        .floating-delete-btn:active { transform: scale(0.9); }
     </style>
 </head>
 <body>
@@ -129,6 +149,15 @@
             <button class="header-btn disabled" id="btnDownload" onclick="downloadPDF()">⬇</button>
             <button class="header-btn primary" onclick="openAddModal()">+</button>
         </div>
+    </div>
+
+    <div class="floating-ui trash-zone">
+        <button class="fab-btn" id="trash-btn" onclick="deleteSelectedEquipment()">🗑️</button>
+    </div>
+
+    <div class="floating-ui zoom-zone">
+        <button class="fab-btn zoom-btn" onclick="updateZoom(0.1)">+</button>
+        <button class="fab-btn zoom-btn" onclick="updateZoom(-0.1)">-</button>
     </div>
 
     <div id="workspace-wrapper">
@@ -166,11 +195,10 @@
     </div>
 
     <div class="toast" id="toast"></div>
-    
-    <button class="floating-delete-btn" id="floatingDeleteBtn" onclick="deleteSelectedEquipment()">🗑️</button>
 
     <script>
         let selectedEquipmentId = null;
+        let currentZoom = 1; // Niveau de zoom actuel
 
         function checkPass() {
             if(document.getElementById('pass-field').value === "1234") {
@@ -185,7 +213,7 @@
         function getIcon(type) {
             const imageMap = {
                 'routeur': 'routeur.jpg',
-                'switch': 'com1.jpg', // Vérifiez bien si c'est com1.jpg ou switch.jpg sur votre GitHub
+                'switch': 'com1.jpg',
                 'nvr': 'nvr.jpg',
                 'bullet': 'cam1.jpg',
                 'dome': 'cam2.jpg',
@@ -199,18 +227,29 @@
             return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
         }
 
-        // Fonction optimisée pour ne redessiner que les lignes (pas tout le DOM)
+        // --- GESTION DU ZOOM ---
+        function updateZoom(delta) {
+            const newZoom = currentZoom + delta;
+            // Limites de zoom (0.4x à 2.0x)
+            if (newZoom >= 0.4 && newZoom <= 2.0) {
+                currentZoom = newZoom;
+                const container = document.getElementById('workspace-container');
+                container.style.transform = `scale(${currentZoom})`;
+                
+                // On met à jour la taille de la zone scrollable pour que les scrollbars s'adaptent
+                // (Optionnel mais améliore l'UX)
+            }
+        }
+
         function updateConnectionsOnly() {
             const layer = document.getElementById('connections-layer');
-            layer.innerHTML = ''; // On efface juste les lignes
+            layer.innerHTML = ''; 
             
             equipments.forEach(eq => {
                 if (eq.parent) {
                     const parent = equipments.find(e => e.id === eq.parent);
                     if (parent) {
                         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        // Centre de la node (160px de large -> 80px)
-                        // Hauteur approx 120px -> connexion bas (100) vers haut (0)
                         const d = `M ${parent.x + 80} ${parent.y + 100} C ${parent.x + 80} ${(parent.y + 100 + eq.y)/2}, ${eq.x + 80} ${(parent.y + 100 + eq.y)/2}, ${eq.x + 80} ${eq.y}`;
                         path.setAttribute("d", d); 
                         path.setAttribute("stroke", "#007AFF"); 
@@ -223,7 +262,6 @@
         }
 
         function render() {
-            // Nettoyage complet
             document.querySelectorAll('.node').forEach(el => el.remove());
             
             equipments.forEach(eq => {
@@ -233,7 +271,6 @@
                 div.style.left = eq.x + 'px'; 
                 div.style.top = eq.y + 'px';
                 
-                // Si l'objet est celui sélectionné, on lui remet la classe selected
                 if(eq.id === selectedEquipmentId) div.classList.add('selected');
 
                 div.innerHTML = `<div class="icon">${getIcon(eq.type)}</div>
@@ -241,13 +278,11 @@
                                  <div class="ip-addr">${eq.ip}</div>
                                  <div class="loc">${eq.loc}</div>`;
                 
-                // Gestion Drag & Drop
                 div.addEventListener('mousedown', startDrag);
                 div.addEventListener('touchstart', startDrag, {passive: false});
                 
-                // Gestion du Clic pour Sélection
                 div.addEventListener('click', (e) => { 
-                    e.stopPropagation(); // Empêche le clic de traverser au fond
+                    e.stopPropagation(); 
                     deselectAll(); 
                     div.classList.add('selected');
                     selectedEquipmentId = eq.id;
@@ -256,26 +291,30 @@
 
                 document.getElementById('workspace-container').appendChild(div);
             });
-            
-            // On dessine les liens après avoir placé les boîtes
             updateConnectionsOnly();
         }
 
+        // --- GESTION DU DRAG (MODIFIÉE POUR LE ZOOM) ---
         let activeDragId = null; 
-        let dragOffsetX = 0; 
-        let dragOffsetY = 0;
+        let dragStartX = 0; 
+        let dragStartY = 0;
+        let initialObjX = 0;
+        let initialObjY = 0;
 
         function startDrag(e) {
-            // CORRECTION IPHONE : On enlève e.preventDefault() ici !
-            // Cela permet à l'événement 'click' de se produire si on ne fait que taper (tap) sans bouger.
-            
             activeDragId = e.currentTarget.id;
+            
+            // Coordonnées initiales du doigt/souris
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             
-            const rect = e.currentTarget.getBoundingClientRect();
-            dragOffsetX = clientX - rect.left; 
-            dragOffsetY = clientY - rect.top;
+            dragStartX = clientX;
+            dragStartY = clientY;
+
+            // Position initiale de l'objet
+            const eq = equipments.find(item => item.id === activeDragId);
+            initialObjX = eq.x;
+            initialObjY = eq.y;
             
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('touchmove', onDrag, {passive: false});
@@ -285,26 +324,30 @@
 
         function onDrag(e) {
             if (!activeDragId) return;
-            e.preventDefault(); // On empêche le scroll SEULEMENT quand on bouge vraiment
+            e.preventDefault(); // Empêche le scroll quand on tient un objet
             
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const wrapper = document.getElementById('workspace-wrapper').getBoundingClientRect();
             
-            let newX = clientX - wrapper.left + document.getElementById('workspace-wrapper').scrollLeft - dragOffsetX;
-            let newY = clientY - wrapper.top + document.getElementById('workspace-wrapper').scrollTop - dragOffsetY;
+            // Calcul du déplacement (Delta)
+            // IMPORTANT : On divise par currentZoom pour compenser l'échelle !
+            const deltaX = (clientX - dragStartX) / currentZoom;
+            const deltaY = (clientY - dragStartY) / currentZoom;
             
-            // Mise à jour des données
+            // Nouvelle position
+            const newX = initialObjX + deltaX;
+            const newY = initialObjY + deltaY;
+            
+            // Mise à jour données
             const eq = equipments.find(item => item.id === activeDragId);
             eq.x = Math.max(0, newX); 
             eq.y = Math.max(0, newY);
             
-            // PERFORMANCE IPHONE : On bouge l'élément HTML directement sans tout redessiner
+            // Mise à jour visuelle (DOM + Lignes)
             const el = document.getElementById(activeDragId);
             el.style.left = eq.x + 'px'; 
             el.style.top = eq.y + 'px';
             
-            // On met à jour seulement les traits SVG (très rapide)
             updateConnectionsOnly();
         }
 
@@ -330,7 +373,6 @@
             }
             if(confirm("Supprimer cet équipement ?")) {
                 equipments = equipments.filter(eq => eq.id !== selectedEquipmentId);
-                // Si des équipements étaient connectés à celui supprimé, ils deviennent orphelins (racine)
                 equipments.forEach(e => { if(e.parent === selectedEquipmentId) e.parent = null; });
                 selectedEquipmentId = null;
                 updateFloatingDeleteButton();
@@ -339,7 +381,7 @@
         }
 
         function updateFloatingDeleteButton() {
-            const floatingBtn = document.getElementById('floatingDeleteBtn');
+            const floatingBtn = document.getElementById('trash-btn');
             if (selectedEquipmentId && selectedEquipmentId !== 'root') {
                 floatingBtn.classList.add('show');
             } else {
@@ -363,7 +405,9 @@
                 ip: document.getElementById('newIP').value || "0.0.0.0",
                 loc: document.getElementById('newLocation').value || "Lieu",
                 parent: document.getElementById('newParent').value || null,
-                x: 200, y: document.getElementById('workspace-wrapper').scrollTop + 200
+                // On centre l'objet par rapport au scroll actuel pour qu'il soit visible
+                x: (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom, 
+                y: (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom
             };
             equipments.push(newEq); render(); closeAddModal();
         }
@@ -372,10 +416,17 @@
 
         function downloadPDF() {
             const name = document.getElementById('siteName').value; deselectAll();
+            // On remet le zoom à 100% temporairement pour l'export sinon le PDF est petit
+            const oldZoom = currentZoom;
+            document.getElementById('workspace-container').style.transform = `scale(1)`;
+            
             html2canvas(document.getElementById('workspace-container'), { scale: 2 }).then(canvas => {
                 const pdf = new jspdf.jsPDF({ orientation: 'l', unit: 'px', format: [canvas.width, canvas.height] });
                 pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvas.width, canvas.height);
                 pdf.save(`Synoptique_${name}.pdf`);
+                
+                // On remet le zoom utilisateur
+                document.getElementById('workspace-container').style.transform = `scale(${oldZoom})`;
             });
         }
 
