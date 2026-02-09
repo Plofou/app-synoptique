@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Synoptique Sécurisé</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -16,28 +16,29 @@
             --border: #C6C6C8;
         }
 
-        /* Bloquer le scroll global sur le body */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 0;
             background-color: var(--bg);
-            height: 100vh; /* Hauteur totale de l'écran */
+            /* Utilisation de dvh (Dynamic Viewport Height) pour Safari iOS */
+            height: 100dvh; 
+            width: 100%;
             display: flex;
-            flex-direction: column; /* Empilement vertical */
-            overflow: hidden; /* Empêche la page entière de bouger */
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        /* --- ÉCRAN DE SÉCURITÉ (MOT DE PASSE) --- */
+        /* --- ÉCRAN DE SÉCURITÉ --- */
         #auth-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: #1d1d1f; /* Fond sombre Apple */
+            background: #1d1d1f;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 10000; /* Au dessus de tout */
+            z-index: 10000;
             color: white;
             transition: opacity 0.3s;
         }
@@ -64,18 +65,25 @@
             box-sizing: border-box;
         }
 
-        /* --- HEADER FIGÉ --- */
+        /* --- HEADER CORRIGÉ POUR IPHONE --- */
         .header {
             background-color: var(--card);
-            padding: 10px 15px;
+            /* On ajoute une marge interne en haut pour éviter l'encoche (Notch) */
+            padding-top: env(safe-area-inset-top); 
+            padding-bottom: 10px;
+            padding-left: 15px;
+            padding-right: 15px;
+            
             display: flex;
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 1px 5px rgba(0,0,0,0.1);
             z-index: 50;
-            flex-shrink: 0; /* Empêche le header de rétrécir */
-            height: 60px; /* Hauteur fixe */
-            box-sizing: border-box;
+            flex-shrink: 0;
+            /* La hauteur s'adapte au contenu + notch */
+            height: auto; 
+            min-height: 50px;
+            box-sizing: content-box; /* Important pour que le padding s'ajoute */
         }
 
         .header input {
@@ -85,6 +93,7 @@
             font-size: 1rem;
             width: 100%;
             max-width: 200px;
+            margin-top: 5px; /* Petit espace pour aérer */
         }
 
         .header-btn {
@@ -93,28 +102,28 @@
             font-size: 1.5rem;
             padding: 5px 10px;
             cursor: pointer;
+            margin-top: 5px;
         }
         .header-btn.primary { color: var(--primary); font-weight: bold; }
         .header-btn.disabled { opacity: 0.3; pointer-events: none; }
 
-        /* --- ESPACE DE TRAVAIL SCROLLABLE --- */
+        /* --- WRAPPER --- */
         #workspace-wrapper {
-            flex-grow: 1; /* Prend tout l'espace restant */
+            flex-grow: 1;
             position: relative;
-            overflow: auto; /* Active le scroll uniquement ici */
-            -webkit-overflow-scrolling: touch; /* Scroll fluide iOS */
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
             background-color: var(--bg);
+            z-index: 1;
         }
 
         #workspace-container {
             position: relative;
-            min-height: 100%; /* Au moins la taille de l'écran */
+            min-height: 100%;
             min-width: 100%;
-            /* Motif de fond */
             background-image: radial-gradient(#ccc 1px, transparent 1px);
             background-size: 20px 20px;
             touch-action: none; 
-            /* On agrandit la zone virtuelle pour permettre le scroll si besoin */
             width: 2000px; 
             height: 2000px;
         }
@@ -124,10 +133,9 @@
             top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             z-index: 1;
-            overflow: visible; /* Important pour voir les lignes hors écran */
         }
 
-        /* --- LES ÉQUIPEMENTS (NODES) --- */
+        /* --- NODES --- */
         .node {
             position: absolute;
             background: var(--card);
@@ -141,7 +149,7 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             z-index: 2;
             user-select: none;
-            touch-action: none; /* Important pour le drag */
+            touch-action: none;
         }
 
         .node.selected {
@@ -155,7 +163,6 @@
         .node .ip-addr { font-size: 0.75rem; color: var(--primary); font-family: monospace; margin: 2px 0; }
         .node .loc { font-size: 0.7rem; color: #888; text-align: center; font-style: italic; }
 
-        /* Bouton Supprimer (Zone agrandie) */
         .delete-btn {
             position: absolute;
             top: -12px; right: -12px;
@@ -181,6 +188,7 @@
         .modal-content {
             background: white; width: 100%; max-width: 500px;
             border-radius: 16px 16px 0 0; padding: 20px;
+            padding-bottom: 40px; /* Marge bas pour iPhone sans bouton home */
             animation: slideUp 0.3s ease-out;
             max-height: 85vh; overflow-y: auto; 
         }
@@ -298,12 +306,12 @@
 
         // --- DONNÉES ---
         let equipments = [
-            { id: 'root', type: 'router', deviceName: 'Routeur FAI', ip: '192.168.1.1', loc: 'Entrée', x: 150, y: 50, parent: null }
+            { id: 'root', type: 'router', deviceName: 'Routeur FAI', ip: '192.168.1.1', loc: 'Entrée', x: 150, y: 150, parent: null }
         ];
 
         // --- DOM ELEMENTS ---
-        const workspaceWrapper = document.getElementById('workspace-wrapper'); // Le scroll
-        const workspaceContainer = document.getElementById('workspace-container'); // La zone de dessin
+        const workspaceWrapper = document.getElementById('workspace-wrapper');
+        const workspaceContainer = document.getElementById('workspace-container');
         const svgLayer = document.getElementById('connections-layer');
         const modal = document.getElementById('addModal');
 
@@ -336,7 +344,6 @@
             div.style.left = eq.x + 'px';
             div.style.top = eq.y + 'px';
             
-            // Note: onpointerdown pour suppression immédiate sur mobile
             div.innerHTML = `
                 <div class="delete-btn" onpointerdown="deleteNode('${eq.id}', event)">✕</div>
                 <div class="icon">${getIcon(eq.type)}</div>
@@ -357,9 +364,9 @@
             if (!parent) return;
 
             const x1 = parent.x + 75; 
-            const y1 = parent.y + 70;
+            const y1 = parent.y + 70; // Connecté au bas du parent
             const x2 = eq.x + 75;
-            const y2 = eq.y;
+            const y2 = eq.y; // Arrive au haut de l'enfant
 
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
             const d = `M ${x1} ${y1} C ${x1} ${(y1+y2)/2}, ${x2} ${(y1+y2)/2}, ${x2} ${y2}`;
@@ -379,16 +386,14 @@
             });
         }
 
-        // --- INTERACTION DRAG & DROP (Fixe le scroll) ---
+        // --- INTERACTION DRAG & DROP ---
         let activeDragId = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
 
         function startDrag(e) {
             if(e.target.className === 'delete-btn') return;
-            // On n'appelle PAS preventDefault ici pour laisser le scroll possible si on ne touche pas un objet
-            // Mais si on touche un objet, on veut bloquer le scroll de page
-            e.preventDefault(); 
+            // On n'empêche PAS le défaut tout de suite pour permettre le clic
             
             const el = e.currentTarget;
             activeDragId = el.id;
@@ -396,12 +401,7 @@
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-            // Il faut prendre en compte le scroll du container
-            const scrollLeft = workspaceWrapper.scrollLeft;
-            const scrollTop = workspaceWrapper.scrollTop;
-
             const rect = el.getBoundingClientRect();
-            // Calcul offset relatif à la position visuelle
             dragOffsetX = clientX - rect.left;
             dragOffsetY = clientY - rect.top;
 
@@ -413,20 +413,18 @@
 
         function onDrag(e) {
             if (!activeDragId) return;
-            e.preventDefault(); // Bloque le scroll pendant qu'on déplace un objet
+            e.preventDefault(); // Maintenant on bloque le scroll
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-            // Position dans la fenêtre - Offset souris
+            // Calcul précis position dans container
             let pageX = clientX - workspaceWrapper.getBoundingClientRect().left;
             let pageY = clientY - workspaceWrapper.getBoundingClientRect().top;
             
-            // + Scroll actuel
             let newX = pageX + workspaceWrapper.scrollLeft - dragOffsetX;
             let newY = pageY + workspaceWrapper.scrollTop - dragOffsetY;
 
-            // Limites (ne pas sortir en haut/gauche)
             if(newX < 0) newX = 0;
             if(newY < 0) newY = 0;
 
@@ -462,9 +460,8 @@
 
         function deleteNode(id, event) {
             event.stopPropagation();
-            event.preventDefault(); // Stop tout autre event
+            event.preventDefault();
             
-            // Petit délai pour l'UX
             setTimeout(() => {
                 if(confirm("Supprimer cet équipement ?")) {
                     equipments = equipments.filter(e => e.id !== id);
@@ -504,13 +501,11 @@
             const location = document.getElementById('newLocation').value || "";
             const parentId = document.getElementById('newParent').value;
 
-            // Position auto : en dessous du parent ou au centre si racine
-            let parentX = 150, parentY = 50;
+            let parentX = 150, parentY = 150;
             if(parentId) {
                 const p = equipments.find(e => e.id === parentId);
                 if(p) { parentX = p.x; parentY = p.y + 130; }
             } else {
-                // Si racine, on décale un peu en fonction du scroll actuel
                 parentY = workspaceWrapper.scrollTop + 100;
             }
 
@@ -544,10 +539,8 @@
             deselectAll();
             showToast("Génération PDF...");
             
-            // On capture workspace-container (qui est grand)
             html2canvas(workspaceContainer).then(canvas => {
                 const { jsPDF } = window.jspdf;
-                // Calcul taille PDF dynamique selon le dessin
                 const pdf = new jsPDF({
                     orientation: canvas.width > canvas.height ? 'l' : 'p',
                     unit: 'px',
