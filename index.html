@@ -65,32 +65,8 @@
         .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
         .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
 
-        /* --- NOUVEAU BOUTON POUBELLE --- */
-        #trash-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 20px;
-            width: 60px; height: 60px;
-            background-color: white;
-            border-radius: 50%;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            display: flex; justify-content: center; align-items: center;
-            font-size: 24px;
-            z-index: 100;
-            cursor: pointer;
-            opacity: 0.4; /* Grisé par défaut */
-            pointer-events: none; /* Inactive par défaut */
-            transition: all 0.2s ease;
-        }
-
-        /* État actif (quand un objet est sélectionné) */
-        #trash-btn.active {
-            background-color: var(--danger);
-            color: white;
-            opacity: 1;
-            pointer-events: auto;
-            transform: scale(1.1);
-        }
+        .delete-btn { position: absolute; top: -12px; right: -12px; background: var(--danger); color: white; border-radius: 50%; width: 32px; height: 32px; text-align: center; line-height: 32px; font-size: 18px; display: none; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100; }
+        .node.selected .delete-btn { display: block; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; z-index: 200; }
         .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; padding-bottom: 40px; animation: slideUp 0.3s ease-out; max-height: 85vh; overflow-y: auto; }
@@ -122,8 +98,6 @@
             <button class="header-btn primary" onclick="openAddModal()">+</button>
         </div>
     </div>
-
-    <div id="trash-btn" onclick="deleteSelectedNode()">🗑️</div>
 
     <div id="workspace-wrapper">
         <div id="workspace-container" onclick="deselectAll(event)">
@@ -177,10 +151,10 @@
                 'routeur': 'routeur.jpg',
                 'switch': 'switch.jpg',
                 'nvr': 'nvr.jpg',
-                'bullet': 'cam1.jpg',   
-                'dome': 'cam2.jpg',     
-                'box': 'internet.jpg',  
-                'ecran': 'pc.jpg',      
+                'bullet': 'cam1.jpg',   // Corresponds à ton fichier cam1.jpg
+                'dome': 'cam2.jpg',     // Corresponds à ton fichier cam2.jpg
+                'box': 'internet.jpg',  // Corresponds à ton fichier internet.jpg
+                'ecran': 'pc.jpg',      // Corresponds à ton fichier pc.jpg
                 'radio': 'radio.jpg',
                 'ampli': 'ampli.jpg',
                 'hp': 'hp.jpg',
@@ -192,28 +166,18 @@
         function render() {
             document.querySelectorAll('.node').forEach(el => el.remove());
             document.getElementById('connections-layer').innerHTML = '';
-            
             equipments.forEach(eq => {
                 const div = document.createElement('div');
                 div.className = 'node'; div.id = eq.id;
                 div.style.left = eq.x + 'px'; div.style.top = eq.y + 'px';
-                // J'ai retiré la croix individuelle ici
-                div.innerHTML = `<div class="icon">${getIcon(eq.type)}</div>
+                div.innerHTML = `<div class="delete-btn" onpointerdown="deleteNode('${eq.id}', event)">✕</div>
+                                 <div class="icon">${getIcon(eq.type)}</div>
                                  <div class="device-name">${eq.deviceName}</div>
                                  <div class="ip-addr">${eq.ip}</div>
                                  <div class="loc">${eq.loc}</div>`;
-                
                 div.addEventListener('mousedown', startDrag);
                 div.addEventListener('touchstart', startDrag, {passive: false});
-                
-                // Au clic, on sélectionne et on active la poubelle
-                div.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
-                    deselectAll(); 
-                    div.classList.add('selected'); 
-                    activateTrash(true); // Active la poubelle
-                });
-
+                div.addEventListener('click', (e) => { e.stopPropagation(); deselectAll(); div.classList.add('selected'); });
                 document.getElementById('workspace-container').appendChild(div);
                 if (eq.parent) drawConnection(eq);
             });
@@ -230,6 +194,7 @@
 
         let activeDragId = null; let dragOffsetX = 0; let dragOffsetY = 0;
         function startDrag(e) {
+            if(e.target.className === 'delete-btn') return;
             e.preventDefault();
             activeDragId = e.currentTarget.id;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -252,40 +217,12 @@
             eq.x = Math.max(0, newX); eq.y = Math.max(0, newY);
             const el = document.getElementById(activeDragId);
             el.style.left = eq.x + 'px'; el.style.top = eq.y + 'px';
-            render(); 
+            render(); // Redessine les lignes
         }
 
         function endDrag() { activeDragId = null; }
-        
-        // Gestion de la sélection et de la poubelle
-        function deselectAll() { 
-            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); 
-            activateTrash(false); // Désactive la poubelle si on clique dans le vide
-        }
-
-        function activateTrash(active) {
-            const btn = document.getElementById('trash-btn');
-            if(active) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        }
-
-        // Nouvelle fonction de suppression via le bouton poubelle
-        function deleteSelectedNode() {
-            const selectedNode = document.querySelector('.node.selected');
-            if(selectedNode) {
-                const id = selectedNode.id;
-                if(confirm("Supprimer cet élément ?")) {
-                    equipments = equipments.filter(eq => eq.id !== id);
-                    // On gère les orphelins
-                    equipments.forEach(e => { if(e.parent === id) e.parent = null; });
-                    render();
-                    activateTrash(false);
-                }
-            }
-        }
+        function deselectAll() { document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); }
+        function deleteNode(id, e) { e.stopPropagation(); if(confirm("Supprimer ?")) { equipments = equipments.filter(eq => eq.id !== id); render(); } }
 
         function openAddModal() {
             const sel = document.getElementById('newParent');
