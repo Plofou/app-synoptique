@@ -21,7 +21,6 @@
             margin: 0;
             padding: 0;
             background-color: var(--bg);
-            /* Utilisation de dvh (Dynamic Viewport Height) pour Safari iOS */
             height: 100dvh; 
             width: 100%;
             display: flex;
@@ -65,25 +64,22 @@
             box-sizing: border-box;
         }
 
-        /* --- HEADER CORRIGÉ POUR IPHONE --- */
+        /* --- HEADER --- */
         .header {
             background-color: var(--card);
-            /* On ajoute une marge interne en haut pour éviter l'encoche (Notch) */
             padding-top: env(safe-area-inset-top); 
             padding-bottom: 10px;
             padding-left: 15px;
             padding-right: 15px;
-            
             display: flex;
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 1px 5px rgba(0,0,0,0.1);
             z-index: 50;
             flex-shrink: 0;
-            /* La hauteur s'adapte au contenu + notch */
             height: auto; 
             min-height: 50px;
-            box-sizing: content-box; /* Important pour que le padding s'ajoute */
+            box-sizing: content-box;
         }
 
         .header input {
@@ -93,7 +89,7 @@
             font-size: 1rem;
             width: 100%;
             max-width: 200px;
-            margin-top: 5px; /* Petit espace pour aérer */
+            margin-top: 5px;
         }
 
         .header-btn {
@@ -142,7 +138,7 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             padding: 8px;
-            width: 150px;
+            width: 160px; /* Un peu plus large pour les images */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -158,8 +154,29 @@
             z-index: 10;
         }
 
-        .node .icon { font-size: 1.5rem; margin-bottom: 2px; }
-        .node .device-name { font-weight: 700; font-size: 0.85rem; text-align: center; line-height: 1.2;}
+        /* Style pour le conteneur de l'image */
+        .node .icon {
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 50px; /* Hauteur fixe pour l'image */
+            width: 100%;
+        }
+
+        /* Style pour l'image elle-même */
+        .node-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* L'image garde ses proportions */
+        }
+        
+        /* Fallback pour les emojis si pas d'image */
+        .node-emoji {
+            font-size: 2rem;
+        }
+
+        .node .device-name { font-weight: 700; font-size: 0.85rem; text-align: center; line-height: 1.2; margin-top: 4px;}
         .node .ip-addr { font-size: 0.75rem; color: var(--primary); font-family: monospace; margin: 2px 0; }
         .node .loc { font-size: 0.7rem; color: #888; text-align: center; font-style: italic; }
 
@@ -188,7 +205,7 @@
         .modal-content {
             background: white; width: 100%; max-width: 500px;
             border-radius: 16px 16px 0 0; padding: 20px;
-            padding-bottom: 40px; /* Marge bas pour iPhone sans bouton home */
+            padding-bottom: 40px;
             animation: slideUp 0.3s ease-out;
             max-height: 85vh; overflow-y: auto; 
         }
@@ -249,12 +266,25 @@
             <div class="form-group">
                 <label>Type</label>
                 <select id="newType">
-                    <option value="switch">🔀 Switch</option>
-                    <option value="router">🌐 Routeur</option>
-                    <option value="camera">📹 Caméra</option>
-                    <option value="nvr">💾 NVR</option>
-                    <option value="ap">📡 Point d'accès</option>
-                    <option value="pc">💻 PC/Serveur</option>
+                    <option value="routeur">Routeur</option>
+                    <option value="switch">Switch</option>
+                    <option value="nvr">NVR</option>
+                    <optgroup label="Caméras">
+                        <option value="bullet">Caméra Bullet</option>
+                        <option value="dome">Caméra Dôme</option>
+                    </optgroup>
+                    <optgroup label="Réseau & Radio">
+                        <option value="radio">Radio / Pont</option>
+                        <option value="box">Box (TV/Internet)</option>
+                    </optgroup>
+                    <optgroup label="Audio & Vidéo">
+                        <option value="ampli">Ampli Audio</option>
+                        <option value="pupitre">Pupitre Micro</option>
+                        <option value="ecran">Écran</option>
+                    </optgroup>
+                    <optgroup label="Autre">
+                         <option value="pc">PC / Serveur</option>
+                    </optgroup>
                 </select>
             </div>
             
@@ -288,10 +318,10 @@
     <div class="toast" id="toast">Message</div>
 
     <script>
-        // --- SÉCURITÉ : MOT DE PASSE ---
+        // --- SÉCURITÉ ---
         function checkPass() {
             const input = document.getElementById('pass-field').value;
-            const secret = "1234"; // <--- CHANGE TON MOT DE PASSE ICI
+            const secret = "1234"; // Code d'accès
 
             if(input === secret) {
                 document.getElementById('auth-overlay').style.opacity = '0';
@@ -306,7 +336,8 @@
 
         // --- DONNÉES ---
         let equipments = [
-            { id: 'root', type: 'router', deviceName: 'Routeur FAI', ip: '192.168.1.1', loc: 'Entrée', x: 150, y: 150, parent: null }
+            // Le premier équipement utilise maintenant l'image routeur.jpg
+            { id: 'root', type: 'routeur', deviceName: 'Routeur FAI', ip: '192.168.1.1', loc: 'Entrée', x: 150, y: 150, parent: null }
         ];
 
         // --- DOM ELEMENTS ---
@@ -332,9 +363,32 @@
             });
         }
 
+        // --- NOUVELLE FONCTION POUR GÉRER LES IMAGES ---
         function getIcon(type) {
-            const icons = { 'switch': '🔀', 'router': '🌐', 'camera': '📹', 'nvr': '💾', 'ap': '📡', 'pc': '💻' };
-            return icons[type] || '📦';
+            // Mappage entre le type d'appareil et le nom du fichier image
+            const imageMap = {
+                'routeur': 'routeur.jpg',
+                'switch': 'switch.jpg',
+                'nvr': 'nvr.jpg',
+                'bullet': 'bullet.jpg',
+                'dome': 'dome.jpg',
+                'radio': 'radio.jpg',
+                'ampli': 'ampli.jpg',
+                'ecran': 'ecran.jpg',
+                'box': 'box.jpg',
+                'pupitre': 'pupitre.jpg'
+            };
+
+            if (imageMap[type]) {
+                // Si une image existe pour ce type, on retourne la balise <img>
+                // Les images doivent être à la racine, à côté du index.html
+                return `<img src="${imageMap[type]}" alt="${type}" class="node-image">`;
+            } else {
+                // Fallback pour les types sans image définie (ex: 'pc')
+                const emojis = { 'pc': '💻' };
+                const emoji = emojis[type] || '📦';
+                return `<span class="node-emoji">${emoji}</span>`;
+            }
         }
 
         function createNodeElement(eq) {
@@ -363,10 +417,12 @@
             const parent = equipments.find(e => e.id === eq.parent);
             if (!parent) return;
 
-            const x1 = parent.x + 75; 
-            const y1 = parent.y + 70; // Connecté au bas du parent
-            const x2 = eq.x + 75;
-            const y2 = eq.y; // Arrive au haut de l'enfant
+            // Le centre est maintenant à 80px car la largeur de la node est de 160px
+            const x1 = parent.x + 80; 
+            // La hauteur est variable selon le contenu, on vise un peu plus bas que le milieu
+            const y1 = parent.y + 85; 
+            const x2 = eq.x + 80;
+            const y2 = eq.y; 
 
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
             const d = `M ${x1} ${y1} C ${x1} ${(y1+y2)/2}, ${x2} ${(y1+y2)/2}, ${x2} ${y2}`;
@@ -393,7 +449,6 @@
 
         function startDrag(e) {
             if(e.target.className === 'delete-btn') return;
-            // On n'empêche PAS le défaut tout de suite pour permettre le clic
             
             const el = e.currentTarget;
             activeDragId = el.id;
@@ -413,12 +468,11 @@
 
         function onDrag(e) {
             if (!activeDragId) return;
-            e.preventDefault(); // Maintenant on bloque le scroll
+            e.preventDefault(); 
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-            // Calcul précis position dans container
             let pageX = clientX - workspaceWrapper.getBoundingClientRect().left;
             let pageY = clientY - workspaceWrapper.getBoundingClientRect().top;
             
@@ -504,7 +558,7 @@
             let parentX = 150, parentY = 150;
             if(parentId) {
                 const p = equipments.find(e => e.id === parentId);
-                if(p) { parentX = p.x; parentY = p.y + 130; }
+                if(p) { parentX = p.x; parentY = p.y + 150; } // Espace vertical augmenté
             } else {
                 parentY = workspaceWrapper.scrollTop + 100;
             }
