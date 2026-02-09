@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Synoptique Interactif v2</title>
+    <title>Synoptique Sécurisé</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
@@ -16,26 +16,66 @@
             --border: #C6C6C8;
         }
 
+        /* Bloquer le scroll global sur le body */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 0;
             background-color: var(--bg);
-            height: 100vh;
+            height: 100vh; /* Hauteur totale de l'écran */
             display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            flex-direction: column; /* Empilement vertical */
+            overflow: hidden; /* Empêche la page entière de bouger */
         }
 
-        /* --- HEADER --- */
+        /* --- ÉCRAN DE SÉCURITÉ (MOT DE PASSE) --- */
+        #auth-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1d1d1f; /* Fond sombre Apple */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000; /* Au dessus de tout */
+            color: white;
+            transition: opacity 0.3s;
+        }
+
+        .auth-box {
+            background: #2c2c2e;
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #1c1c1e;
+            color: white;
+            font-size: 1.2rem;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        /* --- HEADER FIGÉ --- */
         .header {
             background-color: var(--card);
             padding: 10px 15px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            z-index: 20;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+            z-index: 50;
+            flex-shrink: 0; /* Empêche le header de rétrécir */
+            height: 60px; /* Hauteur fixe */
+            box-sizing: border-box;
         }
 
         .header input {
@@ -57,24 +97,34 @@
         .header-btn.primary { color: var(--primary); font-weight: bold; }
         .header-btn.disabled { opacity: 0.3; pointer-events: none; }
 
-        /* --- ESPACE DE TRAVAIL --- */
-        #workspace-container {
-            flex-grow: 1;
+        /* --- ESPACE DE TRAVAIL SCROLLABLE --- */
+        #workspace-wrapper {
+            flex-grow: 1; /* Prend tout l'espace restant */
             position: relative;
-            overflow: hidden;
+            overflow: auto; /* Active le scroll uniquement ici */
+            -webkit-overflow-scrolling: touch; /* Scroll fluide iOS */
+            background-color: var(--bg);
+        }
+
+        #workspace-container {
+            position: relative;
+            min-height: 100%; /* Au moins la taille de l'écran */
+            min-width: 100%;
+            /* Motif de fond */
             background-image: radial-gradient(#ccc 1px, transparent 1px);
             background-size: 20px 20px;
-            touch-action: none;
+            touch-action: none; 
+            /* On agrandit la zone virtuelle pour permettre le scroll si besoin */
+            width: 2000px; 
+            height: 2000px;
         }
 
         #connections-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             z-index: 1;
+            overflow: visible; /* Important pour voir les lignes hors écran */
         }
 
         /* --- LES ÉQUIPEMENTS (NODES) --- */
@@ -84,18 +134,15 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             padding: 8px;
-            width: 150px; /* Légèrement élargi pour l'IP */
+            width: 150px;
             display: flex;
             flex-direction: column;
             align-items: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             z-index: 2;
             user-select: none;
-            cursor: grab;
-            transition: box-shadow 0.2s, transform 0.1s;
+            touch-action: none; /* Important pour le drag */
         }
-
-        .node:active { cursor: grabbing; transform: scale(1.02); }
 
         .node.selected {
             border-color: var(--primary);
@@ -108,46 +155,34 @@
         .node .ip-addr { font-size: 0.75rem; color: var(--primary); font-family: monospace; margin: 2px 0; }
         .node .loc { font-size: 0.7rem; color: #888; text-align: center; font-style: italic; }
 
-        /* Bouton Supprimer */
+        /* Bouton Supprimer (Zone agrandie) */
         .delete-btn {
             position: absolute;
-            top: -10px;
-            right: -10px;
-            background: var(--danger);
-            color: white;
+            top: -12px; right: -12px;
+            background: var(--danger); color: white;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            text-align: center;
-            line-height: 24px;
-            font-size: 14px;
-            display: none;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            width: 30px; height: 30px;
+            text-align: center; line-height: 30px;
+            font-size: 16px;
+            display: none; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            z-index: 100;
         }
-
         .node.selected .delete-btn { display: block; }
 
-        /* --- MODALE --- */
+        /* --- MODALES --- */
         .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5);
-            display: none;
-            justify-content: center;
-            align-items: flex-end;
-            z-index: 100;
+            display: none; justify-content: center; align-items: flex-end;
+            z-index: 200;
         }
         
         .modal-content {
-            background: white;
-            width: 100%;
-            max-width: 500px;
-            border-radius: 16px 16px 0 0;
-            padding: 20px;
+            background: white; width: 100%; max-width: 500px;
+            border-radius: 16px 16px 0 0; padding: 20px;
             animation: slideUp 0.3s ease-out;
-            max-height: 85vh;
-            overflow-y: auto; 
+            max-height: 85vh; overflow-y: auto; 
         }
 
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -155,15 +190,12 @@
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
         .form-group input, .form-group select {
-            width: 100%; padding: 10px;
-            border: 1px solid #ddd; border-radius: 8px;
-            font-size: 1rem; box-sizing: border-box;
-            background: #FAFAFA;
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
+            font-size: 1rem; box-sizing: border-box; background: #FAFAFA;
         }
 
         .btn-full {
-            width: 100%; padding: 12px;
-            border-radius: 10px; border: none;
+            width: 100%; padding: 12px; border-radius: 10px; border: none;
             font-size: 1rem; font-weight: bold; margin-top: 10px; cursor: pointer;
         }
         .btn-primary { background: var(--primary); color: white; }
@@ -173,11 +205,20 @@
         .toast {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: #333; color: white; padding: 10px 20px;
-            border-radius: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200;
+            border-radius: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300;
         }
     </style>
 </head>
 <body>
+
+    <div id="auth-overlay">
+        <div class="auth-box">
+            <h3 style="margin-top:0;">🔐 Accès Technicien</h3>
+            <p style="font-size:0.9rem; color:#aaa;">Veuillez saisir le code d'accès</p>
+            <input type="tel" id="pass-field" class="auth-input" placeholder="Code" maxlength="4">
+            <button class="btn-full btn-primary" onclick="checkPass()">Valider</button>
+        </div>
+    </div>
 
     <div class="header">
         <input type="text" id="siteName" placeholder="Nom du Site *" oninput="checkInput()">
@@ -187,9 +228,11 @@
         </div>
     </div>
 
-    <div id="workspace-container" onclick="deselectAll(event)">
-        <svg id="connections-layer"></svg>
-        </div>
+    <div id="workspace-wrapper">
+        <div id="workspace-container" onclick="deselectAll(event)">
+            <svg id="connections-layer"></svg>
+            </div>
+    </div>
 
     <div class="modal-overlay" id="addModal">
         <div class="modal-content">
@@ -237,30 +280,36 @@
     <div class="toast" id="toast">Message</div>
 
     <script>
-        // --- DONNÉES ---
-        // Mise à jour de la structure de données pour inclure IP et deviceName
-        let equipments = [
-            { 
-                id: 'root', 
-                type: 'router', 
-                deviceName: 'Routeur FAI', 
-                ip: '192.168.1.1',
-                loc: 'Entrée Technique', 
-                x: window.innerWidth/2 - 75, 
-                y: 50, 
-                parent: null 
+        // --- SÉCURITÉ : MOT DE PASSE ---
+        function checkPass() {
+            const input = document.getElementById('pass-field').value;
+            const secret = "1234"; // <--- CHANGE TON MOT DE PASSE ICI
+
+            if(input === secret) {
+                document.getElementById('auth-overlay').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('auth-overlay').style.display = 'none';
+                }, 300);
+            } else {
+                alert("Code incorrect !");
+                document.getElementById('pass-field').value = '';
             }
+        }
+
+        // --- DONNÉES ---
+        let equipments = [
+            { id: 'root', type: 'router', deviceName: 'Routeur FAI', ip: '192.168.1.1', loc: 'Entrée', x: 150, y: 50, parent: null }
         ];
 
         // --- DOM ELEMENTS ---
-        const workspace = document.getElementById('workspace-container');
+        const workspaceWrapper = document.getElementById('workspace-wrapper'); // Le scroll
+        const workspaceContainer = document.getElementById('workspace-container'); // La zone de dessin
         const svgLayer = document.getElementById('connections-layer');
         const modal = document.getElementById('addModal');
 
         // --- INITIALISATION ---
         window.onload = () => render();
 
-        // --- RENDU GRAPHIQUE ---
         function render() {
             const existingNodes = document.querySelectorAll('.node');
             existingNodes.forEach(el => el.remove());
@@ -287,9 +336,9 @@
             div.style.left = eq.x + 'px';
             div.style.top = eq.y + 'px';
             
-            // Affichage mis à jour : Icone, Nom Appareil, IP, Lieu
+            // Note: onpointerdown pour suppression immédiate sur mobile
             div.innerHTML = `
-                <div class="delete-btn" onclick="deleteNode('${eq.id}', event)">✕</div>
+                <div class="delete-btn" onpointerdown="deleteNode('${eq.id}', event)">✕</div>
                 <div class="icon">${getIcon(eq.type)}</div>
                 <div class="device-name">${eq.deviceName}</div>
                 ${eq.ip ? `<div class="ip-addr">${eq.ip}</div>` : ''}
@@ -300,15 +349,14 @@
             div.addEventListener('touchstart', startDrag, {passive: false});
             div.addEventListener('click', (e) => selectNode(eq.id, e));
 
-            workspace.appendChild(div);
+            workspaceContainer.appendChild(div);
         }
 
-        // --- DESSIN DES LIGNES (SVG) ---
         function drawConnection(eq) {
             const parent = equipments.find(e => e.id === eq.parent);
             if (!parent) return;
 
-            const x1 = parent.x + 75; // Centre (Largeur 150 / 2)
+            const x1 = parent.x + 75; 
             const y1 = parent.y + 70;
             const x2 = eq.x + 75;
             const y2 = eq.y;
@@ -331,21 +379,29 @@
             });
         }
 
-        // --- INTERACTION DRAG & DROP ---
+        // --- INTERACTION DRAG & DROP (Fixe le scroll) ---
         let activeDragId = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
 
         function startDrag(e) {
             if(e.target.className === 'delete-btn') return;
-            e.preventDefault();
+            // On n'appelle PAS preventDefault ici pour laisser le scroll possible si on ne touche pas un objet
+            // Mais si on touche un objet, on veut bloquer le scroll de page
+            e.preventDefault(); 
+            
             const el = e.currentTarget;
             activeDragId = el.id;
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
+            // Il faut prendre en compte le scroll du container
+            const scrollLeft = workspaceWrapper.scrollLeft;
+            const scrollTop = workspaceWrapper.scrollTop;
+
             const rect = el.getBoundingClientRect();
+            // Calcul offset relatif à la position visuelle
             dragOffsetX = clientX - rect.left;
             dragOffsetY = clientY - rect.top;
 
@@ -357,13 +413,22 @@
 
         function onDrag(e) {
             if (!activeDragId) return;
-            e.preventDefault();
+            e.preventDefault(); // Bloque le scroll pendant qu'on déplace un objet
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-            let newX = clientX - dragOffsetX;
-            let newY = clientY - dragOffsetY;
+            // Position dans la fenêtre - Offset souris
+            let pageX = clientX - workspaceWrapper.getBoundingClientRect().left;
+            let pageY = clientY - workspaceWrapper.getBoundingClientRect().top;
+            
+            // + Scroll actuel
+            let newX = pageX + workspaceWrapper.scrollLeft - dragOffsetX;
+            let newY = pageY + workspaceWrapper.scrollTop - dragOffsetY;
+
+            // Limites (ne pas sortir en haut/gauche)
+            if(newX < 0) newX = 0;
+            if(newY < 0) newY = 0;
 
             const el = document.getElementById(activeDragId);
             el.style.left = newX + 'px';
@@ -384,7 +449,7 @@
             document.removeEventListener('touchend', endDrag);
         }
 
-        // --- GESTION SÉLECTION ---
+        // --- GESTION SUPPRESSION ---
         function selectNode(id, event) {
             event.stopPropagation();
             document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
@@ -397,31 +462,34 @@
 
         function deleteNode(id, event) {
             event.stopPropagation();
-            if(confirm("Supprimer cet équipement ?")) {
-                equipments = equipments.filter(e => e.id !== id);
-                equipments.forEach(e => {
-                    if(e.parent === id) e.parent = null;
-                });
-                render();
-            }
+            event.preventDefault(); // Stop tout autre event
+            
+            // Petit délai pour l'UX
+            setTimeout(() => {
+                if(confirm("Supprimer cet équipement ?")) {
+                    equipments = equipments.filter(e => e.id !== id);
+                    equipments.forEach(e => {
+                        if(e.parent === id) e.parent = null;
+                    });
+                    render();
+                }
+            }, 10);
         }
 
-        // --- AJOUT D'ÉQUIPEMENT (LOGIQUE MISE À JOUR) ---
+        // --- AJOUT ---
         function openAddModal() {
             const parentSelect = document.getElementById('newParent');
             parentSelect.innerHTML = '<option value="">-- Racine --</option>';
             equipments.forEach(eq => {
                 const opt = document.createElement('option');
                 opt.value = eq.id;
-                opt.text = eq.deviceName; // On affiche le nom de l'appareil dans la liste
+                opt.text = eq.deviceName;
                 parentSelect.appendChild(opt);
             });
             
-            // Reset des champs
             document.getElementById('newDeviceName').value = '';
             document.getElementById('newIP').value = '';
             document.getElementById('newLocation').value = '';
-            
             modal.style.display = 'flex';
         }
 
@@ -431,24 +499,27 @@
 
         function addEquipment() {
             const type = document.getElementById('newType').value;
-            // Récupération des nouveaux champs
-            const deviceName = document.getElementById('newDeviceName').value || "Appareil Inconnu";
+            const deviceName = document.getElementById('newDeviceName').value || "Appareil";
             const ip = document.getElementById('newIP').value || "";
             const location = document.getElementById('newLocation').value || "";
             const parentId = document.getElementById('newParent').value;
 
-            let parentX = 50, parentY = 50;
+            // Position auto : en dessous du parent ou au centre si racine
+            let parentX = 150, parentY = 50;
             if(parentId) {
                 const p = equipments.find(e => e.id === parentId);
                 if(p) { parentX = p.x; parentY = p.y + 130; }
+            } else {
+                // Si racine, on décale un peu en fonction du scroll actuel
+                parentY = workspaceWrapper.scrollTop + 100;
             }
 
             const newEq = {
                 id: 'eq-' + Date.now(),
                 type: type,
-                deviceName: deviceName, // Nouveau champ
-                ip: ip,                 // Nouveau champ
-                loc: location,          // Ancien champ renommé
+                deviceName: deviceName,
+                ip: ip,
+                loc: location,
                 parent: parentId || null,
                 x: parentX + (Math.random() * 40 - 20),
                 y: parentY
@@ -473,16 +544,18 @@
             deselectAll();
             showToast("Génération PDF...");
             
-            html2canvas(document.getElementById('workspace-container')).then(canvas => {
+            // On capture workspace-container (qui est grand)
+            html2canvas(workspaceContainer).then(canvas => {
                 const { jsPDF } = window.jspdf;
+                // Calcul taille PDF dynamique selon le dessin
                 const pdf = new jsPDF({
-                    orientation: 'landscape',
+                    orientation: canvas.width > canvas.height ? 'l' : 'p',
                     unit: 'px',
                     format: [canvas.width, canvas.height]
                 });
                 
-                pdf.text(`Site: ${name}`, 10, 20);
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 40, canvas.width, canvas.height);
+                pdf.text(`Site: ${name}`, 20, 30);
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 50, canvas.width, canvas.height);
                 pdf.save(`Synoptique_${name}.pdf`);
                 showToast("✅ Téléchargé !");
             });
