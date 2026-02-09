@@ -66,7 +66,7 @@
         .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
 
         .delete-btn { position: absolute; top: -12px; right: -12px; background: var(--danger); color: white; border-radius: 50%; width: 32px; height: 32px; text-align: center; line-height: 32px; font-size: 18px; display: none; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100; }
-        .node.selected .delete-btn { display: block; }
+        /* Croix rouge désactivée - suppression uniquement via bouton flottant */
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; z-index: 200; }
         .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; padding-bottom: 40px; animation: slideUp 0.3s ease-out; max-height: 85vh; overflow-y: auto; }
@@ -79,6 +79,36 @@
         .btn-primary { background: var(--primary); color: white; }
         .btn-cancel { background: #E5E5EA; color: black; margin-top: 5px;}
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; }
+        
+        /* Floating delete button */
+        .floating-delete-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
+            width: 70px;
+            height: 70px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 32px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(255, 59, 48, 0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 250;
+            transition: all 0.2s;
+        }
+
+        .floating-delete-btn.show {
+            display: flex;
+        }
+
+        .floating-delete-btn:active {
+            transform: scale(0.95);
+            background: #E62E25;
+        }
     </style>
 </head>
 <body>
@@ -134,8 +164,13 @@
     </div>
 
     <div class="toast" id="toast"></div>
+    
+    <!-- Floating Delete Button -->
+    <button class="floating-delete-btn" id="floatingDeleteBtn" onclick="deleteSelectedEquipment()">🗑️</button>
 
     <script>
+        let selectedEquipmentId = null; // Variable pour stocker l'ID de l'équipement sélectionné
+
         function checkPass() {
             if(document.getElementById('pass-field').value === "1234") {
                 document.getElementById('auth-overlay').style.display = 'none';
@@ -151,10 +186,10 @@
                 'routeur': 'routeur.jpg',
                 'switch': 'com1.jpg',
                 'nvr': 'nvr.jpg',
-                'bullet': 'cam1.jpg',   // Corresponds à ton fichier cam1.jpg
-                'dome': 'cam2.jpg',     // Corresponds à ton fichier cam2.jpg
-                'box': 'internet.jpg',  // Corresponds à ton fichier internet.jpg
-                'ecran': 'pc.jpg',      // Corresponds à ton fichier pc.jpg
+                'bullet': 'cam1.jpg',
+                'dome': 'cam2.jpg',
+                'box': 'internet.jpg',
+                'ecran': 'pc.jpg',
                 'radio': 'radio.jpg',
                 'ampli': 'ampli.jpg',
                 'hp': 'hp.jpg',
@@ -177,7 +212,13 @@
                                  <div class="loc">${eq.loc}</div>`;
                 div.addEventListener('mousedown', startDrag);
                 div.addEventListener('touchstart', startDrag, {passive: false});
-                div.addEventListener('click', (e) => { e.stopPropagation(); deselectAll(); div.classList.add('selected'); });
+                div.addEventListener('click', (e) => { 
+                    e.stopPropagation(); 
+                    deselectAll(); 
+                    div.classList.add('selected');
+                    selectedEquipmentId = eq.id; // Stocker l'ID sélectionné
+                    updateFloatingDeleteButton(); // Afficher le bouton poubelle
+                });
                 document.getElementById('workspace-container').appendChild(div);
                 if (eq.parent) drawConnection(eq);
             });
@@ -217,12 +258,51 @@
             eq.x = Math.max(0, newX); eq.y = Math.max(0, newY);
             const el = document.getElementById(activeDragId);
             el.style.left = eq.x + 'px'; el.style.top = eq.y + 'px';
-            render(); // Redessine les lignes
+            render();
         }
 
         function endDrag() { activeDragId = null; }
-        function deselectAll() { document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); }
-        function deleteNode(id, e) { e.stopPropagation(); if(confirm("Supprimer ?")) { equipments = equipments.filter(eq => eq.id !== id); render(); } }
+        
+        function deselectAll(e) { 
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); 
+            selectedEquipmentId = null; // Réinitialiser la sélection
+            updateFloatingDeleteButton(); // Cacher le bouton poubelle
+        }
+        
+        function deleteNode(id, e) { 
+            e.stopPropagation(); 
+            if(confirm("Supprimer ?")) { 
+                equipments = equipments.filter(eq => eq.id !== id); 
+                selectedEquipmentId = null; // Réinitialiser la sélection
+                updateFloatingDeleteButton(); // Cacher le bouton poubelle
+                render(); 
+            } 
+        }
+
+        // Nouvelle fonction pour supprimer via le bouton flottant
+        function deleteSelectedEquipment() {
+            if (!selectedEquipmentId) return;
+            if (selectedEquipmentId === 'root') {
+                alert("Impossible de supprimer le routeur principal");
+                return;
+            }
+            if(confirm("Supprimer cet équipement ?")) {
+                equipments = equipments.filter(eq => eq.id !== selectedEquipmentId);
+                selectedEquipmentId = null;
+                updateFloatingDeleteButton();
+                render();
+            }
+        }
+
+        // Fonction pour afficher/cacher le bouton poubelle flottant
+        function updateFloatingDeleteButton() {
+            const floatingBtn = document.getElementById('floatingDeleteBtn');
+            if (selectedEquipmentId && selectedEquipmentId !== 'root') {
+                floatingBtn.classList.add('show');
+            } else {
+                floatingBtn.classList.remove('show');
+            }
+        }
 
         function openAddModal() {
             const sel = document.getElementById('newParent');
