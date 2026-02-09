@@ -14,6 +14,7 @@
             --bg: #F2F2F7;
             --card: #FFFFFF;
             --border: #C6C6C8;
+            --success: #34C759;
         }
 
         body {
@@ -43,16 +44,20 @@
             display: flex; align-items: center; justify-content: space-between;
             box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 50; flex-shrink: 0;
         }
-        .header input { border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 1rem; width: 100%; max-width: 180px; }
-        .header-btn { background: none; border: none; font-size: 1.5rem; padding: 5px 10px; cursor: pointer; }
+        .header input { border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 1rem; width: 100%; max-width: 160px; }
+        
+        .header-actions { display: flex; gap: 8px; }
+        
+        .header-btn { background: none; border: none; font-size: 1.4rem; padding: 5px; cursor: pointer; }
         .header-btn.primary { color: var(--primary); font-weight: bold; }
+        .header-btn.save { color: var(--success); } /* Vert pour sauvegarder */
         .header-btn.disabled { opacity: 0.3; pointer-events: none; }
 
         /* --- WORKSPACE & ZOOM --- */
         #workspace-wrapper { 
             flex-grow: 1; 
             position: relative; 
-            overflow: auto; /* Permet le scroll naturel (pan) */
+            overflow: auto; 
             -webkit-overflow-scrolling: touch; 
             z-index: 1; 
             background-color: var(--bg);
@@ -60,14 +65,13 @@
         
         #workspace-container { 
             position: relative; 
-            /* On définit une grande zone pour dessiner */
             width: 3000px; 
             height: 3000px; 
             background-image: radial-gradient(#ccc 1px, transparent 1px); 
             background-size: 20px 20px; 
             touch-action: none; 
-            transform-origin: 0 0; /* Le zoom part du coin haut gauche */
-            transition: transform 0.1s ease-out; /* Petit lissage du zoom */
+            transform-origin: 0 0; 
+            transition: transform 0.1s ease-out; 
         }
         
         #connections-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
@@ -143,9 +147,13 @@
         </div>
     </div>
 
+    <input type="file" id="fileLoader" style="display:none" accept=".json" onchange="loadProject(this)">
+
     <div class="header">
         <input type="text" id="siteName" placeholder="Nom du Site *" oninput="checkInput()">
-        <div style="display:flex; gap:10px;">
+        <div class="header-actions">
+            <button class="header-btn save" onclick="saveProject()" title="Sauvegarder">💾</button>
+            <button class="header-btn" onclick="triggerLoad()" title="Ouvrir">📂</button>
             <button class="header-btn disabled" id="btnDownload" onclick="downloadPDF()">⬇</button>
             <button class="header-btn primary" onclick="openAddModal()">+</button>
         </div>
@@ -157,6 +165,7 @@
 
     <div class="floating-ui zoom-zone">
         <button class="fab-btn zoom-btn" onclick="updateZoom(0.1)">+</button>
+        <button class="fab-btn zoom-btn" style="font-size:20px;" onclick="resetZoom()">⌂</button>
         <button class="fab-btn zoom-btn" onclick="updateZoom(-0.1)">-</button>
     </div>
 
@@ -198,7 +207,7 @@
 
     <script>
         let selectedEquipmentId = null;
-        let currentZoom = 1; // Niveau de zoom actuel
+        let currentZoom = 1;
 
         function checkPass() {
             if(document.getElementById('pass-field').value === "1234") {
@@ -227,18 +236,73 @@
             return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
         }
 
-        // --- GESTION DU ZOOM ---
+        // --- SAUVEGARDE ET CHARGEMENT ---
+        function saveProject() {
+            const name = document.getElementById('siteName').value || "Synoptique_SansNom";
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(equipments));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", name + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast("Sauvegarde effectuée ! 💾");
+        }
+
+        function triggerLoad() {
+            document.getElementById('fileLoader').click();
+        }
+
+        function loadProject(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const loadedData = JSON.parse(e.target.result);
+                    if(Array.isArray(loadedData)) {
+                        equipments = loadedData;
+                        render();
+                        // Essayer de deviner le nom du site via le nom du fichier
+                        let fileName = file.name.replace('.json', '');
+                        if(fileName.includes('Synoptique_')) fileName = fileName.replace('Synoptique_', '');
+                        if(fileName !== 'SansNom') document.getElementById('siteName').value = fileName;
+                        
+                        showToast("Projet chargé avec succès ! 📂");
+                    } else {
+                        alert("Format de fichier invalide.");
+                    }
+                } catch(err) {
+                    alert("Erreur lors de la lecture du fichier.");
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; // Reset pour pouvoir recharger le même fichier si besoin
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.opacity = 1;
+            setTimeout(() => t.style.opacity = 0, 3000);
+        }
+
+        // --- GESTION ZOOM ---
         function updateZoom(delta) {
             const newZoom = currentZoom + delta;
-            // Limites de zoom (0.4x à 2.0x)
-            if (newZoom >= 0.4 && newZoom <= 2.0) {
+            if (newZoom >= 0.2 && newZoom <= 3.0) { 
                 currentZoom = newZoom;
                 const container = document.getElementById('workspace-container');
                 container.style.transform = `scale(${currentZoom})`;
-                
-                // On met à jour la taille de la zone scrollable pour que les scrollbars s'adaptent
-                // (Optionnel mais améliore l'UX)
             }
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            document.getElementById('workspace-container').style.transform = `scale(1)`;
+            document.getElementById('workspace-wrapper').scrollLeft = 0;
+            document.getElementById('workspace-wrapper').scrollTop = 0;
         }
 
         function updateConnectionsOnly() {
@@ -294,7 +358,6 @@
             updateConnectionsOnly();
         }
 
-        // --- GESTION DU DRAG (MODIFIÉE POUR LE ZOOM) ---
         let activeDragId = null; 
         let dragStartX = 0; 
         let dragStartY = 0;
@@ -303,19 +366,11 @@
 
         function startDrag(e) {
             activeDragId = e.currentTarget.id;
-            
-            // Coordonnées initiales du doigt/souris
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            dragStartX = clientX;
-            dragStartY = clientY;
-
-            // Position initiale de l'objet
+            dragStartX = clientX; dragStartY = clientY;
             const eq = equipments.find(item => item.id === activeDragId);
-            initialObjX = eq.x;
-            initialObjY = eq.y;
-            
+            initialObjX = eq.x; initialObjY = eq.y;
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('touchmove', onDrag, {passive: false});
             document.addEventListener('mouseup', endDrag); 
@@ -324,30 +379,17 @@
 
         function onDrag(e) {
             if (!activeDragId) return;
-            e.preventDefault(); // Empêche le scroll quand on tient un objet
-            
+            e.preventDefault(); 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            // Calcul du déplacement (Delta)
-            // IMPORTANT : On divise par currentZoom pour compenser l'échelle !
             const deltaX = (clientX - dragStartX) / currentZoom;
             const deltaY = (clientY - dragStartY) / currentZoom;
-            
-            // Nouvelle position
             const newX = initialObjX + deltaX;
             const newY = initialObjY + deltaY;
-            
-            // Mise à jour données
             const eq = equipments.find(item => item.id === activeDragId);
-            eq.x = Math.max(0, newX); 
-            eq.y = Math.max(0, newY);
-            
-            // Mise à jour visuelle (DOM + Lignes)
+            eq.x = Math.max(0, newX); eq.y = Math.max(0, newY);
             const el = document.getElementById(activeDragId);
-            el.style.left = eq.x + 'px'; 
-            el.style.top = eq.y + 'px';
-            
+            el.style.left = eq.x + 'px'; el.style.top = eq.y + 'px';
             updateConnectionsOnly();
         }
 
@@ -405,7 +447,6 @@
                 ip: document.getElementById('newIP').value || "0.0.0.0",
                 loc: document.getElementById('newLocation').value || "Lieu",
                 parent: document.getElementById('newParent').value || null,
-                // On centre l'objet par rapport au scroll actuel pour qu'il soit visible
                 x: (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom, 
                 y: (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom
             };
@@ -416,7 +457,6 @@
 
         function downloadPDF() {
             const name = document.getElementById('siteName').value; deselectAll();
-            // On remet le zoom à 100% temporairement pour l'export sinon le PDF est petit
             const oldZoom = currentZoom;
             document.getElementById('workspace-container').style.transform = `scale(1)`;
             
@@ -424,8 +464,6 @@
                 const pdf = new jspdf.jsPDF({ orientation: 'l', unit: 'px', format: [canvas.width, canvas.height] });
                 pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvas.width, canvas.height);
                 pdf.save(`Synoptique_${name}.pdf`);
-                
-                // On remet le zoom utilisateur
                 document.getElementById('workspace-container').style.transform = `scale(${oldZoom})`;
             });
         }
