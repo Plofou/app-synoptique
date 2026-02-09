@@ -55,7 +55,9 @@
         .node {
             position: absolute; background: var(--card); border: 2px solid #ddd; border-radius: 10px;
             padding: 10px; width: 160px; display: flex; flex-direction: column; align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 2; user-select: none; touch-action: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 2; user-select: none; 
+            /* Important pour iPhone : empêche le scroll natif sur l'objet */
+            touch-action: none; 
         }
 
         .node.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.2); z-index: 10; }
@@ -64,9 +66,6 @@
         .node .device-name { font-weight: 700; font-size: 0.9rem; text-align: center; margin-top: 5px; color: #1d1d1f; }
         .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
         .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
-
-        .delete-btn { position: absolute; top: -12px; right: -12px; background: var(--danger); color: white; border-radius: 50%; width: 32px; height: 32px; text-align: center; line-height: 32px; font-size: 18px; display: none; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100; }
-        /* Croix rouge désactivée - suppression uniquement via bouton flottant */
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; z-index: 200; }
         .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; padding-bottom: 40px; animation: slideUp 0.3s ease-out; max-height: 85vh; overflow-y: auto; }
@@ -84,31 +83,34 @@
         .floating-delete-btn {
             position: fixed;
             bottom: 30px;
-            right: 20px;
-            width: 70px;
-            height: 70px;
+            left: 20px; /* Mis à gauche comme demandé initialement */
+            width: 60px;
+            height: 60px;
             background: var(--danger);
             color: white;
             border: none;
             border-radius: 50%;
-            font-size: 32px;
+            font-size: 24px;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(255, 59, 48, 0.4);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 250;
-            transition: all 0.2s;
+            transition: transform 0.2s, opacity 0.2s;
         }
 
         .floating-delete-btn.show {
             display: flex;
+            animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        @keyframes popIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
 
-        .floating-delete-btn:active {
-            transform: scale(0.95);
-            background: #E62E25;
-        }
+        .floating-delete-btn:active { transform: scale(0.9); }
     </style>
 </head>
 <body>
@@ -165,11 +167,10 @@
 
     <div class="toast" id="toast"></div>
     
-    <!-- Floating Delete Button -->
     <button class="floating-delete-btn" id="floatingDeleteBtn" onclick="deleteSelectedEquipment()">🗑️</button>
 
     <script>
-        let selectedEquipmentId = null; // Variable pour stocker l'ID de l'équipement sélectionné
+        let selectedEquipmentId = null;
 
         function checkPass() {
             if(document.getElementById('pass-field').value === "1234") {
@@ -184,7 +185,7 @@
         function getIcon(type) {
             const imageMap = {
                 'routeur': 'routeur.jpg',
-                'switch': 'com1.jpg',
+                'switch': 'com1.jpg', // Vérifiez bien si c'est com1.jpg ou switch.jpg sur votre GitHub
                 'nvr': 'nvr.jpg',
                 'bullet': 'cam1.jpg',
                 'dome': 'cam2.jpg',
@@ -198,88 +199,129 @@
             return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
         }
 
-        function render() {
-            document.querySelectorAll('.node').forEach(el => el.remove());
-            document.getElementById('connections-layer').innerHTML = '';
+        // Fonction optimisée pour ne redessiner que les lignes (pas tout le DOM)
+        function updateConnectionsOnly() {
+            const layer = document.getElementById('connections-layer');
+            layer.innerHTML = ''; // On efface juste les lignes
+            
             equipments.forEach(eq => {
-                const div = document.createElement('div');
-                div.className = 'node'; div.id = eq.id;
-                div.style.left = eq.x + 'px'; div.style.top = eq.y + 'px';
-                div.innerHTML = `<div class="delete-btn" onpointerdown="deleteNode('${eq.id}', event)">✕</div>
-                                 <div class="icon">${getIcon(eq.type)}</div>
-                                 <div class="device-name">${eq.deviceName}</div>
-                                 <div class="ip-addr">${eq.ip}</div>
-                                 <div class="loc">${eq.loc}</div>`;
-                div.addEventListener('mousedown', startDrag);
-                div.addEventListener('touchstart', startDrag, {passive: false});
-                div.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
-                    deselectAll(); 
-                    div.classList.add('selected');
-                    selectedEquipmentId = eq.id; // Stocker l'ID sélectionné
-                    updateFloatingDeleteButton(); // Afficher le bouton poubelle
-                });
-                document.getElementById('workspace-container').appendChild(div);
-                if (eq.parent) drawConnection(eq);
+                if (eq.parent) {
+                    const parent = equipments.find(e => e.id === eq.parent);
+                    if (parent) {
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        // Centre de la node (160px de large -> 80px)
+                        // Hauteur approx 120px -> connexion bas (100) vers haut (0)
+                        const d = `M ${parent.x + 80} ${parent.y + 100} C ${parent.x + 80} ${(parent.y + 100 + eq.y)/2}, ${eq.x + 80} ${(parent.y + 100 + eq.y)/2}, ${eq.x + 80} ${eq.y}`;
+                        path.setAttribute("d", d); 
+                        path.setAttribute("stroke", "#007AFF"); 
+                        path.setAttribute("stroke-width", "3"); 
+                        path.setAttribute("fill", "none");
+                        layer.appendChild(path);
+                    }
+                }
             });
         }
 
-        function drawConnection(eq) {
-            const parent = equipments.find(e => e.id === eq.parent);
-            if (!parent) return;
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            const d = `M ${parent.x + 80} ${parent.y + 100} C ${parent.x + 80} ${(parent.y + 100 + eq.y)/2}, ${eq.x + 80} ${(parent.y + 100 + eq.y)/2}, ${eq.x + 80} ${eq.y}`;
-            path.setAttribute("d", d); path.setAttribute("stroke", "#007AFF"); path.setAttribute("stroke-width", "3"); path.setAttribute("fill", "none");
-            document.getElementById('connections-layer').appendChild(path);
+        function render() {
+            // Nettoyage complet
+            document.querySelectorAll('.node').forEach(el => el.remove());
+            
+            equipments.forEach(eq => {
+                const div = document.createElement('div');
+                div.className = 'node'; 
+                div.id = eq.id;
+                div.style.left = eq.x + 'px'; 
+                div.style.top = eq.y + 'px';
+                
+                // Si l'objet est celui sélectionné, on lui remet la classe selected
+                if(eq.id === selectedEquipmentId) div.classList.add('selected');
+
+                div.innerHTML = `<div class="icon">${getIcon(eq.type)}</div>
+                                 <div class="device-name">${eq.deviceName}</div>
+                                 <div class="ip-addr">${eq.ip}</div>
+                                 <div class="loc">${eq.loc}</div>`;
+                
+                // Gestion Drag & Drop
+                div.addEventListener('mousedown', startDrag);
+                div.addEventListener('touchstart', startDrag, {passive: false});
+                
+                // Gestion du Clic pour Sélection
+                div.addEventListener('click', (e) => { 
+                    e.stopPropagation(); // Empêche le clic de traverser au fond
+                    deselectAll(); 
+                    div.classList.add('selected');
+                    selectedEquipmentId = eq.id;
+                    updateFloatingDeleteButton();
+                });
+
+                document.getElementById('workspace-container').appendChild(div);
+            });
+            
+            // On dessine les liens après avoir placé les boîtes
+            updateConnectionsOnly();
         }
 
-        let activeDragId = null; let dragOffsetX = 0; let dragOffsetY = 0;
+        let activeDragId = null; 
+        let dragOffsetX = 0; 
+        let dragOffsetY = 0;
+
         function startDrag(e) {
-            if(e.target.className === 'delete-btn') return;
-            e.preventDefault();
+            // CORRECTION IPHONE : On enlève e.preventDefault() ici !
+            // Cela permet à l'événement 'click' de se produire si on ne fait que taper (tap) sans bouger.
+            
             activeDragId = e.currentTarget.id;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
             const rect = e.currentTarget.getBoundingClientRect();
-            dragOffsetX = clientX - rect.left; dragOffsetY = clientY - rect.top;
+            dragOffsetX = clientX - rect.left; 
+            dragOffsetY = clientY - rect.top;
+            
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('touchmove', onDrag, {passive: false});
-            document.addEventListener('mouseup', endDrag); document.addEventListener('touchend', endDrag);
+            document.addEventListener('mouseup', endDrag); 
+            document.addEventListener('touchend', endDrag);
         }
 
         function onDrag(e) {
             if (!activeDragId) return;
+            e.preventDefault(); // On empêche le scroll SEULEMENT quand on bouge vraiment
+            
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             const wrapper = document.getElementById('workspace-wrapper').getBoundingClientRect();
+            
             let newX = clientX - wrapper.left + document.getElementById('workspace-wrapper').scrollLeft - dragOffsetX;
             let newY = clientY - wrapper.top + document.getElementById('workspace-wrapper').scrollTop - dragOffsetY;
+            
+            // Mise à jour des données
             const eq = equipments.find(item => item.id === activeDragId);
-            eq.x = Math.max(0, newX); eq.y = Math.max(0, newY);
+            eq.x = Math.max(0, newX); 
+            eq.y = Math.max(0, newY);
+            
+            // PERFORMANCE IPHONE : On bouge l'élément HTML directement sans tout redessiner
             const el = document.getElementById(activeDragId);
-            el.style.left = eq.x + 'px'; el.style.top = eq.y + 'px';
-            render();
+            el.style.left = eq.x + 'px'; 
+            el.style.top = eq.y + 'px';
+            
+            // On met à jour seulement les traits SVG (très rapide)
+            updateConnectionsOnly();
         }
 
-        function endDrag() { activeDragId = null; }
+        function endDrag() { 
+            activeDragId = null; 
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('touchmove', onDrag);
+            document.removeEventListener('mouseup', endDrag);
+            document.removeEventListener('touchend', endDrag);
+        }
         
         function deselectAll(e) { 
             document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); 
-            selectedEquipmentId = null; // Réinitialiser la sélection
-            updateFloatingDeleteButton(); // Cacher le bouton poubelle
+            selectedEquipmentId = null;
+            updateFloatingDeleteButton();
         }
         
-        function deleteNode(id, e) { 
-            e.stopPropagation(); 
-            if(confirm("Supprimer ?")) { 
-                equipments = equipments.filter(eq => eq.id !== id); 
-                selectedEquipmentId = null; // Réinitialiser la sélection
-                updateFloatingDeleteButton(); // Cacher le bouton poubelle
-                render(); 
-            } 
-        }
-
-        // Nouvelle fonction pour supprimer via le bouton flottant
         function deleteSelectedEquipment() {
             if (!selectedEquipmentId) return;
             if (selectedEquipmentId === 'root') {
@@ -288,13 +330,14 @@
             }
             if(confirm("Supprimer cet équipement ?")) {
                 equipments = equipments.filter(eq => eq.id !== selectedEquipmentId);
+                // Si des équipements étaient connectés à celui supprimé, ils deviennent orphelins (racine)
+                equipments.forEach(e => { if(e.parent === selectedEquipmentId) e.parent = null; });
                 selectedEquipmentId = null;
                 updateFloatingDeleteButton();
                 render();
             }
         }
 
-        // Fonction pour afficher/cacher le bouton poubelle flottant
         function updateFloatingDeleteButton() {
             const floatingBtn = document.getElementById('floatingDeleteBtn');
             if (selectedEquipmentId && selectedEquipmentId !== 'root') {
