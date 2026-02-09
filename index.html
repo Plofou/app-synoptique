@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Synoptique Sécurisé</title>
+    <title>Synoptique Technicien</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
@@ -18,228 +18,74 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             background-color: var(--bg);
-            height: 100dvh; 
-            width: 100%;
-            display: flex;
-            flex-direction: column;
+            height: 100dvh; width: 100%;
+            display: flex; flex-direction: column;
             overflow: hidden;
         }
 
-        /* --- ÉCRAN DE SÉCURITÉ --- */
         #auth-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #1d1d1f;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            color: white;
-            transition: opacity 0.3s;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #1d1d1f; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 10000; color: white; transition: opacity 0.3s;
         }
 
-        .auth-box {
-            background: #2c2c2e;
-            padding: 25px;
-            border-radius: 16px;
-            text-align: center;
-            width: 80%;
-            max-width: 300px;
-        }
+        .auth-box { background: #2c2c2e; padding: 25px; border-radius: 16px; text-align: center; width: 80%; max-width: 300px; }
+        .auth-input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #444; background: #1c1c1e; color: white; font-size: 1.2rem; text-align: center; box-sizing: border-box; }
 
-        .auth-input {
-            width: 100%;
-            padding: 12px;
-            margin: 15px 0;
-            border-radius: 8px;
-            border: 1px solid #444;
-            background: #1c1c1e;
-            color: white;
-            font-size: 1.2rem;
-            text-align: center;
-            box-sizing: border-box;
-        }
-
-        /* --- HEADER --- */
         .header {
             background-color: var(--card);
             padding-top: env(safe-area-inset-top); 
-            padding-bottom: 10px;
-            padding-left: 15px;
-            padding-right: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
-            z-index: 50;
-            flex-shrink: 0;
-            height: auto; 
-            min-height: 50px;
-            box-sizing: content-box;
+            padding-bottom: 10px; padding-left: 15px; padding-right: 15px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 50; flex-shrink: 0;
         }
 
-        .header input {
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 8px;
-            font-size: 1rem;
-            width: 100%;
-            max-width: 200px;
-            margin-top: 5px;
-        }
-
-        .header-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            padding: 5px 10px;
-            cursor: pointer;
-            margin-top: 5px;
-        }
+        .header input { border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 1rem; width: 100%; max-width: 180px; }
+        .header-btn { background: none; border: none; font-size: 1.5rem; padding: 5px 10px; cursor: pointer; }
         .header-btn.primary { color: var(--primary); font-weight: bold; }
         .header-btn.disabled { opacity: 0.3; pointer-events: none; }
 
-        /* --- WRAPPER --- */
-        #workspace-wrapper {
-            flex-grow: 1;
-            position: relative;
-            overflow: auto;
-            -webkit-overflow-scrolling: touch;
-            background-color: var(--bg);
-            z-index: 1;
-        }
+        #workspace-wrapper { flex-grow: 1; position: relative; overflow: auto; -webkit-overflow-scrolling: touch; z-index: 1; }
+        #workspace-container { position: relative; min-height: 100%; min-width: 100%; background-image: radial-gradient(#ccc 1px, transparent 1px); background-size: 20px 20px; touch-action: none; width: 2500px; height: 2500px; }
+        #connections-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
-        #workspace-container {
-            position: relative;
-            min-height: 100%;
-            min-width: 100%;
-            background-image: radial-gradient(#ccc 1px, transparent 1px);
-            background-size: 20px 20px;
-            touch-action: none; 
-            width: 2000px; 
-            height: 2000px;
-        }
-
-        #connections-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        /* --- NODES --- */
         .node {
-            position: absolute;
-            background: var(--card);
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            padding: 8px;
-            width: 160px; /* Un peu plus large pour les images */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            z-index: 2;
-            user-select: none;
-            touch-action: none;
+            position: absolute; background: var(--card); border: 2px solid #ddd; border-radius: 10px;
+            padding: 10px; width: 160px; display: flex; flex-direction: column; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 2; user-select: none; touch-action: none;
         }
 
-        .node.selected {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0,122,255,0.2);
-            z-index: 10;
-        }
+        .node.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.2); z-index: 10; }
+        .node .icon { margin-bottom: 5px; height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; }
+        .node-image { max-width: 90%; max-height: 100%; object-fit: contain; }
+        .node .device-name { font-weight: 700; font-size: 0.9rem; text-align: center; margin-top: 5px; color: #1d1d1f; }
+        .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
+        .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
 
-        /* Style pour le conteneur de l'image */
-        .node .icon {
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 50px; /* Hauteur fixe pour l'image */
-            width: 100%;
-        }
-
-        /* Style pour l'image elle-même */
-        .node-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain; /* L'image garde ses proportions */
-        }
-        
-        /* Fallback pour les emojis si pas d'image */
-        .node-emoji {
-            font-size: 2rem;
-        }
-
-        .node .device-name { font-weight: 700; font-size: 0.85rem; text-align: center; line-height: 1.2; margin-top: 4px;}
-        .node .ip-addr { font-size: 0.75rem; color: var(--primary); font-family: monospace; margin: 2px 0; }
-        .node .loc { font-size: 0.7rem; color: #888; text-align: center; font-style: italic; }
-
-        .delete-btn {
-            position: absolute;
-            top: -12px; right: -12px;
-            background: var(--danger); color: white;
-            border-radius: 50%;
-            width: 30px; height: 30px;
-            text-align: center; line-height: 30px;
-            font-size: 16px;
-            display: none; cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            z-index: 100;
-        }
+        .delete-btn { position: absolute; top: -12px; right: -12px; background: var(--danger); color: white; border-radius: 50%; width: 32px; height: 32px; text-align: center; line-height: 32px; font-size: 18px; display: none; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100; }
         .node.selected .delete-btn { display: block; }
 
-        /* --- MODALES --- */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: none; justify-content: center; align-items: flex-end;
-            z-index: 200;
-        }
-        
-        .modal-content {
-            background: white; width: 100%; max-width: 500px;
-            border-radius: 16px 16px 0 0; padding: 20px;
-            padding-bottom: 40px;
-            animation: slideUp 0.3s ease-out;
-            max-height: 85vh; overflow-y: auto; 
-        }
-
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; z-index: 200; }
+        .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; padding-bottom: 40px; animation: slideUp 0.3s ease-out; max-height: 85vh; overflow-y: auto; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
-        .form-group input, .form-group select {
-            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
-            font-size: 1rem; box-sizing: border-box; background: #FAFAFA;
-        }
-
-        .btn-full {
-            width: 100%; padding: 12px; border-radius: 10px; border: none;
-            font-size: 1rem; font-weight: bold; margin-top: 10px; cursor: pointer;
-        }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 1rem; box-sizing: border-box; background: #FAFAFA; }
+        .btn-full { width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 1rem; font-weight: bold; margin-top: 10px; cursor: pointer; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-cancel { background: #E5E5EA; color: black; margin-top: 5px;}
-
-        /* --- TOAST --- */
-        .toast {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            background: #333; color: white; padding: 10px 20px;
-            border-radius: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300;
-        }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; }
     </style>
 </head>
 <body>
 
     <div id="auth-overlay">
         <div class="auth-box">
-            <h3 style="margin-top:0;">🔐 Accès Technicien</h3>
-            <p style="font-size:0.9rem; color:#aaa;">Veuillez saisir le code d'accès</p>
+            <h3>🔐 Accès Technicien</h3>
             <input type="tel" id="pass-field" class="auth-input" placeholder="Code" maxlength="4">
             <button class="btn-full btn-primary" onclick="checkPass()">Valider</button>
         </div>
@@ -256,366 +102,161 @@
     <div id="workspace-wrapper">
         <div id="workspace-container" onclick="deselectAll(event)">
             <svg id="connections-layer"></svg>
-            </div>
+        </div>
     </div>
 
     <div class="modal-overlay" id="addModal">
         <div class="modal-content">
             <h3>Nouvel Équipement</h3>
-            
             <div class="form-group">
-                <label>Type</label>
+                <label>Type d'appareil</label>
                 <select id="newType">
-                    <option value="routeur">Routeur</option>
-                    <option value="switch">Switch</option>
-                    <option value="nvr">NVR</option>
-                    <optgroup label="Caméras">
-                        <option value="bullet">Caméra Bullet</option>
-                        <option value="dome">Caméra Dôme</option>
-                    </optgroup>
-                    <optgroup label="Réseau & Radio">
-                        <option value="radio">Radio / Pont</option>
-                        <option value="box">Box (TV/Internet)</option>
-                    </optgroup>
-                    <optgroup label="Audio & Vidéo">
-                        <option value="ampli">Ampli Audio</option>
-                        <option value="hp">Haut-Parleur (HP)</option>
-                        <option value="pupitre">Pupitre Micro</option>
-                        <option value="ecran">Écran</option>
-                    </optgroup>
-                    <optgroup label="Autre">
-                         <option value="pc">PC / Serveur</option>
-                    </optgroup>
+                    <option value="routeur">Routeur Mikrotik</option>
+                    <option value="switch">Switch Hikvision</option>
+                    <option value="nvr">NVR Hikvision</option>
+                    <option value="bullet">Caméra Bullet (Cam1)</option>
+                    <option value="dome">Caméra Dôme (Cam2)</option>
+                    <option value="box">Box / Internet</option>
+                    <option value="ecran">Écran (PC)</option>
+                    <option value="radio">Antenne Radio</option>
+                    <option value="ampli">Ampli Audio</option>
+                    <option value="hp">Haut-Parleur (HP)</option>
+                    <option value="pupitre">Pupitre Micro</option>
                 </select>
             </div>
-            
-            <div class="form-group">
-                <label>Nom de l'appareil</label>
-                <input type="text" id="newDeviceName" placeholder="Ex: Switch-RDC-01">
-            </div>
-
-            <div class="form-group">
-                <label>Adresse IP</label>
-                <input type="text" id="newIP" placeholder="Ex: 192.168.1.10">
-            </div>
-
-            <div class="form-group">
-                <label>Lieu</label>
-                <input type="text" id="newLocation" placeholder="Ex: Bureau Direction">
-            </div>
-
-            <div class="form-group">
-                <label>Connecté à</label>
-                <select id="newParent">
-                    <option value="">-- Aucun (Racine) --</option>
-                </select>
-            </div>
-
+            <div class="form-group"><label>Nom / Réf</label><input type="text" id="newDeviceName" placeholder="Ex: Switch-RDC"></div>
+            <div class="form-group"><label>Adresse IP</label><input type="text" id="newIP" placeholder="Ex: 192.168.1.10"></div>
+            <div class="form-group"><label>Localisation</label><input type="text" id="newLocation" placeholder="Ex: Baie de brassage"></div>
+            <div class="form-group"><label>Connecté à</label><select id="newParent"><option value="">-- Racine --</option></select></div>
             <button class="btn-full btn-primary" onclick="addEquipment()">Ajouter</button>
             <button class="btn-full btn-cancel" onclick="closeAddModal()">Annuler</button>
         </div>
     </div>
 
-    <div class="toast" id="toast">Message</div>
+    <div class="toast" id="toast"></div>
 
     <script>
-        // --- SÉCURITÉ ---
         function checkPass() {
-            const input = document.getElementById('pass-field').value;
-            const secret = "1234"; // Code d'accès
-
-            if(input === secret) {
-                document.getElementById('auth-overlay').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('auth-overlay').style.display = 'none';
-                }, 300);
-            } else {
-                alert("Code incorrect !");
-                document.getElementById('pass-field').value = '';
-            }
+            if(document.getElementById('pass-field').value === "1234") {
+                document.getElementById('auth-overlay').style.display = 'none';
+            } else { alert("Code incorrect"); }
         }
 
-        // --- DONNÉES ---
         let equipments = [
-            // Le premier équipement utilise maintenant l'image routeur.jpg
-            { id: 'root', type: 'routeur', deviceName: 'Routeur FAI', ip: '192.168.1.1', loc: 'Entrée', x: 150, y: 150, parent: null }
+            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 200, y: 100, parent: null }
         ];
 
-        // --- DOM ELEMENTS ---
-        const workspaceWrapper = document.getElementById('workspace-wrapper');
-        const workspaceContainer = document.getElementById('workspace-container');
-        const svgLayer = document.getElementById('connections-layer');
-        const modal = document.getElementById('addModal');
-
-        // --- INITIALISATION ---
-        window.onload = () => render();
-
-        function render() {
-            const existingNodes = document.querySelectorAll('.node');
-            existingNodes.forEach(el => el.remove());
-            
-            svgLayer.innerHTML = '';
-
-            equipments.forEach(eq => {
-                createNodeElement(eq);
-                if (eq.parent) {
-                    drawConnection(eq);
-                }
-            });
-        }
-
-        // --- NOUVELLE FONCTION POUR GÉRER LES IMAGES ---
         function getIcon(type) {
-            // Mappage entre le type d'appareil et le nom du fichier image
             const imageMap = {
                 'routeur': 'routeur.jpg',
-                'switch': 'com1.jpg',
+                'switch': 'switch.jpg',
                 'nvr': 'nvr.jpg',
-                'bullet': 'cam1.jpg',
-                'dome': 'cam2.jpg',
-                'hp': 'hp.jpg',
+                'bullet': 'cam1.jpg',   // Corresponds à ton fichier cam1.jpg
+                'dome': 'cam2.jpg',     // Corresponds à ton fichier cam2.jpg
+                'box': 'internet.jpg',  // Corresponds à ton fichier internet.jpg
+                'ecran': 'pc.jpg',      // Corresponds à ton fichier pc.jpg
                 'radio': 'radio.jpg',
                 'ampli': 'ampli.jpg',
-                'ecran': 'pc.jpg',
-                'box': 'internet.jpg',
+                'hp': 'hp.jpg',
                 'pupitre': 'pupitre.jpg'
             };
-
-            if (imageMap[type]) {
-                // Si une image existe pour ce type, on retourne la balise <img>
-                // Les images doivent être à la racine, à côté du index.html
-                return `<img src="${imageMap[type]}" alt="${type}" class="node-image">`;
-            } else {
-                // Fallback pour les types sans image définie (ex: 'pc')
-                const emojis = { 'pc': '💻' };
-                const emoji = emojis[type] || '📦';
-                return `<span class="node-emoji">${emoji}</span>`;
-            }
+            return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
         }
 
-        function createNodeElement(eq) {
-            const div = document.createElement('div');
-            div.className = 'node';
-            div.id = eq.id;
-            div.style.left = eq.x + 'px';
-            div.style.top = eq.y + 'px';
-            
-            div.innerHTML = `
-                <div class="delete-btn" onpointerdown="deleteNode('${eq.id}', event)">✕</div>
-                <div class="icon">${getIcon(eq.type)}</div>
-                <div class="device-name">${eq.deviceName}</div>
-                ${eq.ip ? `<div class="ip-addr">${eq.ip}</div>` : ''}
-                ${eq.loc ? `<div class="loc">${eq.loc}</div>` : ''}
-            `;
-
-            div.addEventListener('mousedown', startDrag);
-            div.addEventListener('touchstart', startDrag, {passive: false});
-            div.addEventListener('click', (e) => selectNode(eq.id, e));
-
-            workspaceContainer.appendChild(div);
+        function render() {
+            document.querySelectorAll('.node').forEach(el => el.remove());
+            document.getElementById('connections-layer').innerHTML = '';
+            equipments.forEach(eq => {
+                const div = document.createElement('div');
+                div.className = 'node'; div.id = eq.id;
+                div.style.left = eq.x + 'px'; div.style.top = eq.y + 'px';
+                div.innerHTML = `<div class="delete-btn" onpointerdown="deleteNode('${eq.id}', event)">✕</div>
+                                 <div class="icon">${getIcon(eq.type)}</div>
+                                 <div class="device-name">${eq.deviceName}</div>
+                                 <div class="ip-addr">${eq.ip}</div>
+                                 <div class="loc">${eq.loc}</div>`;
+                div.addEventListener('mousedown', startDrag);
+                div.addEventListener('touchstart', startDrag, {passive: false});
+                div.addEventListener('click', (e) => { e.stopPropagation(); deselectAll(); div.classList.add('selected'); });
+                document.getElementById('workspace-container').appendChild(div);
+                if (eq.parent) drawConnection(eq);
+            });
         }
 
         function drawConnection(eq) {
             const parent = equipments.find(e => e.id === eq.parent);
             if (!parent) return;
-
-            // Le centre est maintenant à 80px car la largeur de la node est de 160px
-            const x1 = parent.x + 80; 
-            // La hauteur est variable selon le contenu, on vise un peu plus bas que le milieu
-            const y1 = parent.y + 85; 
-            const x2 = eq.x + 80;
-            const y2 = eq.y; 
-
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            const d = `M ${x1} ${y1} C ${x1} ${(y1+y2)/2}, ${x2} ${(y1+y2)/2}, ${x2} ${y2}`;
-            
-            path.setAttribute("d", d);
-            path.setAttribute("stroke", "#007AFF");
-            path.setAttribute("stroke-width", "2");
-            path.setAttribute("fill", "none");
-
-            svgLayer.appendChild(path);
+            const d = `M ${parent.x + 80} ${parent.y + 100} C ${parent.x + 80} ${(parent.y + 100 + eq.y)/2}, ${eq.x + 80} ${(parent.y + 100 + eq.y)/2}, ${eq.x + 80} ${eq.y}`;
+            path.setAttribute("d", d); path.setAttribute("stroke", "#007AFF"); path.setAttribute("stroke-width", "3"); path.setAttribute("fill", "none");
+            document.getElementById('connections-layer').appendChild(path);
         }
 
-        function updateLines() {
-            svgLayer.innerHTML = '';
-            equipments.forEach(eq => {
-                if (eq.parent) drawConnection(eq);
-            });
-        }
-
-        // --- INTERACTION DRAG & DROP ---
-        let activeDragId = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
-
+        let activeDragId = null; let dragOffsetX = 0; let dragOffsetY = 0;
         function startDrag(e) {
             if(e.target.className === 'delete-btn') return;
-            
-            const el = e.currentTarget;
-            activeDragId = el.id;
-
+            e.preventDefault();
+            activeDragId = e.currentTarget.id;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            const rect = el.getBoundingClientRect();
-            dragOffsetX = clientX - rect.left;
-            dragOffsetY = clientY - rect.top;
-
+            const rect = e.currentTarget.getBoundingClientRect();
+            dragOffsetX = clientX - rect.left; dragOffsetY = clientY - rect.top;
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('touchmove', onDrag, {passive: false});
-            document.addEventListener('mouseup', endDrag);
-            document.addEventListener('touchend', endDrag);
+            document.addEventListener('mouseup', endDrag); document.addEventListener('touchend', endDrag);
         }
 
         function onDrag(e) {
             if (!activeDragId) return;
-            e.preventDefault(); 
-
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            let pageX = clientX - workspaceWrapper.getBoundingClientRect().left;
-            let pageY = clientY - workspaceWrapper.getBoundingClientRect().top;
-            
-            let newX = pageX + workspaceWrapper.scrollLeft - dragOffsetX;
-            let newY = pageY + workspaceWrapper.scrollTop - dragOffsetY;
-
-            if(newX < 0) newX = 0;
-            if(newY < 0) newY = 0;
-
-            const el = document.getElementById(activeDragId);
-            el.style.left = newX + 'px';
-            el.style.top = newY + 'px';
-
+            const wrapper = document.getElementById('workspace-wrapper').getBoundingClientRect();
+            let newX = clientX - wrapper.left + document.getElementById('workspace-wrapper').scrollLeft - dragOffsetX;
+            let newY = clientY - wrapper.top + document.getElementById('workspace-wrapper').scrollTop - dragOffsetY;
             const eq = equipments.find(item => item.id === activeDragId);
-            eq.x = newX;
-            eq.y = newY;
-
-            updateLines();
+            eq.x = Math.max(0, newX); eq.y = Math.max(0, newY);
+            const el = document.getElementById(activeDragId);
+            el.style.left = eq.x + 'px'; el.style.top = eq.y + 'px';
+            render(); // Redessine les lignes
         }
 
-        function endDrag() {
-            activeDragId = null;
-            document.removeEventListener('mousemove', onDrag);
-            document.removeEventListener('touchmove', onDrag);
-            document.removeEventListener('mouseup', endDrag);
-            document.removeEventListener('touchend', endDrag);
-        }
+        function endDrag() { activeDragId = null; }
+        function deselectAll() { document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); }
+        function deleteNode(id, e) { e.stopPropagation(); if(confirm("Supprimer ?")) { equipments = equipments.filter(eq => eq.id !== id); render(); } }
 
-        // --- GESTION SUPPRESSION ---
-        function selectNode(id, event) {
-            event.stopPropagation();
-            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
-            document.getElementById(id).classList.add('selected');
-        }
-
-        function deselectAll(e) {
-            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
-        }
-
-        function deleteNode(id, event) {
-            event.stopPropagation();
-            event.preventDefault();
-            
-            setTimeout(() => {
-                if(confirm("Supprimer cet équipement ?")) {
-                    equipments = equipments.filter(e => e.id !== id);
-                    equipments.forEach(e => {
-                        if(e.parent === id) e.parent = null;
-                    });
-                    render();
-                }
-            }, 10);
-        }
-
-        // --- AJOUT ---
         function openAddModal() {
-            const parentSelect = document.getElementById('newParent');
-            parentSelect.innerHTML = '<option value="">-- Racine --</option>';
-            equipments.forEach(eq => {
-                const opt = document.createElement('option');
-                opt.value = eq.id;
-                opt.text = eq.deviceName;
-                parentSelect.appendChild(opt);
-            });
-            
-            document.getElementById('newDeviceName').value = '';
-            document.getElementById('newIP').value = '';
-            document.getElementById('newLocation').value = '';
-            modal.style.display = 'flex';
+            const sel = document.getElementById('newParent');
+            sel.innerHTML = '<option value="">-- Racine --</option>';
+            equipments.forEach(eq => sel.innerHTML += `<option value="${eq.id}">${eq.deviceName}</option>`);
+            document.getElementById('addModal').style.display = 'flex';
         }
-
-        function closeAddModal() {
-            modal.style.display = 'none';
-        }
+        function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
 
         function addEquipment() {
-            const type = document.getElementById('newType').value;
-            const deviceName = document.getElementById('newDeviceName').value || "Appareil";
-            const ip = document.getElementById('newIP').value || "";
-            const location = document.getElementById('newLocation').value || "";
-            const parentId = document.getElementById('newParent').value;
-
-            let parentX = 150, parentY = 150;
-            if(parentId) {
-                const p = equipments.find(e => e.id === parentId);
-                if(p) { parentX = p.x; parentY = p.y + 150; } // Espace vertical augmenté
-            } else {
-                parentY = workspaceWrapper.scrollTop + 100;
-            }
-
             const newEq = {
                 id: 'eq-' + Date.now(),
-                type: type,
-                deviceName: deviceName,
-                ip: ip,
-                loc: location,
-                parent: parentId || null,
-                x: parentX + (Math.random() * 40 - 20),
-                y: parentY
+                type: document.getElementById('newType').value,
+                deviceName: document.getElementById('newDeviceName').value || "Appareil",
+                ip: document.getElementById('newIP').value || "0.0.0.0",
+                loc: document.getElementById('newLocation').value || "Lieu",
+                parent: document.getElementById('newParent').value || null,
+                x: 200, y: document.getElementById('workspace-wrapper').scrollTop + 200
             };
-
-            equipments.push(newEq);
-            render();
-            closeAddModal();
-            showToast("Équipement ajouté !");
+            equipments.push(newEq); render(); closeAddModal();
         }
 
-        // --- EXPORT PDF ---
-        function checkInput() {
-            const val = document.getElementById('siteName').value;
-            const btn = document.getElementById('btnDownload');
-            if(val.length > 0) btn.classList.remove('disabled');
-            else btn.classList.add('disabled');
-        }
+        function checkInput() { document.getElementById('btnDownload').classList.toggle('disabled', !document.getElementById('siteName').value); }
 
         function downloadPDF() {
-            const name = document.getElementById('siteName').value;
-            deselectAll();
-            showToast("Génération PDF...");
-            
-            html2canvas(workspaceContainer).then(canvas => {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({
-                    orientation: canvas.width > canvas.height ? 'l' : 'p',
-                    unit: 'px',
-                    format: [canvas.width, canvas.height]
-                });
-                
-                pdf.text(`Site: ${name}`, 20, 30);
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 50, canvas.width, canvas.height);
+            const name = document.getElementById('siteName').value; deselectAll();
+            html2canvas(document.getElementById('workspace-container'), { scale: 2 }).then(canvas => {
+                const pdf = new jspdf.jsPDF({ orientation: 'l', unit: 'px', format: [canvas.width, canvas.height] });
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvas.width, canvas.height);
                 pdf.save(`Synoptique_${name}.pdf`);
-                showToast("✅ Téléchargé !");
             });
         }
 
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.style.opacity = 1;
-            setTimeout(() => t.style.opacity = 0, 3000);
-        }
+        window.onload = render;
     </script>
 </body>
 </html>
