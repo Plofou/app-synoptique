@@ -51,7 +51,6 @@
             gap: 15px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             z-index: 50;
-            /* CORRECTION : Workspace plein écran (Header ne rétrécit pas) */
             flex-shrink: 0; 
             transition: background-color 0.3s;
         }
@@ -130,7 +129,6 @@
         
         /* --- WORKSPACE & ZOOM --- */
         #workspace-wrapper { 
-            /* CORRECTION : Workspace plein écran (Flex grow) */
             flex: 1; 
             position: relative; 
             overflow: auto; 
@@ -142,10 +140,12 @@
         
         #workspace-container { 
             position: relative; 
-            width: 3000px; 
-            height: 3000px; 
+            /* MODIFIÉ : Workspace agrandi 3000 -> 10000 */
+            width: 10000px; 
+            height: 10000px; 
             background-image: radial-gradient(#ccc 1px, transparent 1px); 
-            background-size: 20px 20px; 
+            /* MODIFIÉ : Grille légèrement plus espacée */
+            background-size: 30px 30px; 
             touch-action: none; 
             transform-origin: 0 0; 
             transition: transform 0.1s ease-out; 
@@ -208,6 +208,21 @@
             position: absolute; top: 5px; right: 5px;
             background: rgba(0, 0, 0, 0.6); color: white;
             padding: 3px 6px; border-radius: 4px; font-size: 14px; pointer-events: none;
+        }
+
+        /* AJOUTÉ : Indicateur de position */
+        .position-indicator {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 300;
+            pointer-events: none;
         }
 
         /* --- UI FLOTTANTE --- */
@@ -315,9 +330,12 @@
 
     <div class="floating-ui zoom-zone">
         <button class="fab-btn zoom-btn" onclick="updateZoom(0.1)">+</button>
+        <button class="fab-btn zoom-btn" style="font-size:24px;" onclick="zoomToFitAll()" title="Voir tout">⊡</button>
         <button class="fab-btn zoom-btn" style="font-size:20px;" onclick="resetZoom()">⌂</button>
         <button class="fab-btn zoom-btn" onclick="updateZoom(-0.1)">-</button>
     </div>
+
+    <div class="position-indicator" id="positionIndicator">X: 0 | Y: 0</div>
 
     <div id="workspace-wrapper">
         <div id="workspace-container" onclick="deselectAll(event)">
@@ -400,8 +418,6 @@
         let editingEquipmentId = null;
         let suggestedX = null;
         let suggestedY = null;
-        
-        // Variables pour gérer le statut de sauvegarde
         let lastSaved = null;
         let hasUnsavedChanges = false;
 
@@ -480,10 +496,16 @@
                 document.getElementById('darkModeSwitch').checked = true;
                 toggleDarkMode();
             }
-            render(); // Lancer le rendu initial
+            render(); 
         });
 
-        // Mettre à jour le statut de sauvegarde
+        // AJOUTÉ : Indicateur de position en temps réel
+        document.getElementById('workspace-wrapper').addEventListener('scroll', function() {
+            const x = Math.round(this.scrollLeft);
+            const y = Math.round(this.scrollTop);
+            document.getElementById('positionIndicator').textContent = `X: ${x} | Y: ${y}`;
+        });
+
         function updateSaveStatus(saved) {
             const statusEl = document.getElementById('saveStatus');
             
@@ -499,7 +521,6 @@
             }
         }
 
-        // Détecter les modifications non sauvegardées
         function markAsUnsaved() {
             updateSaveStatus(false);
         }
@@ -510,8 +531,9 @@
             } else { alert("Code incorrect"); }
         }
 
+        /* MODIFIÉ : Position initiale centrée dans le grand workspace */
         let equipments = [
-            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 200, y: 100, parent: null }
+            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 5000, y: 100, parent: null }
         ];
 
         function getIcon(type) {
@@ -541,7 +563,7 @@
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
             
-            updateSaveStatus(true); // Marquer comme sauvegardé
+            updateSaveStatus(true); 
             showToast("💾 Projet sauvegardé !");
         }
 
@@ -561,7 +583,7 @@
                         if(fileName.includes('Synoptique_')) fileName = fileName.replace('Synoptique_', '');
                         if(fileName !== 'SansNom') document.getElementById('siteName').value = fileName;
                         
-                        updateSaveStatus(true); // Considéré comme sauvegardé après chargement
+                        updateSaveStatus(true); 
                         showToast("Projet chargé avec succès ! 📂");
                     } else { alert("Format de fichier invalide."); }
                 } catch(err) { alert("Erreur lors de la lecture du fichier."); }
@@ -739,7 +761,7 @@
                             const eq = equipments.find(e => e.id === selectedEquipmentId);
                             if (eq) { 
                                 eq.photo = dataUrl; 
-                                markAsUnsaved(); // Modifié
+                                markAsUnsaved(); 
                                 render(); 
                                 showToast("Photo ajoutée ! 📷"); 
                             }
@@ -763,7 +785,7 @@
                     const eq = equipments.find(e => e.id === selectedEquipmentId);
                     if (eq && eq.photo) { 
                         delete eq.photo; 
-                        markAsUnsaved(); // Modifié
+                        markAsUnsaved(); 
                         render(); 
                         closePhotoViewer(); 
                         showToast("Photo supprimée"); 
@@ -774,7 +796,8 @@
 
         function updateZoom(delta) {
             const newZoom = currentZoom + delta;
-            if (newZoom >= 0.2 && newZoom <= 3.0) { 
+            // Limites de zoom agrandies pour le grand workspace
+            if (newZoom >= 0.1 && newZoom <= 3.0) { 
                 currentZoom = newZoom;
                 document.getElementById('workspace-container').style.transform = `scale(${currentZoom})`;
             }
@@ -783,8 +806,40 @@
         function resetZoom() {
             currentZoom = 1;
             document.getElementById('workspace-container').style.transform = `scale(1)`;
-            document.getElementById('workspace-wrapper').scrollLeft = 0;
+            // Centrer la vue sur le routeur
+            document.getElementById('workspace-wrapper').scrollLeft = 5000 - (window.innerWidth / 2);
             document.getElementById('workspace-wrapper').scrollTop = 0;
+        }
+
+        // AJOUTÉ : Fonction Zoom to Fit All
+        function zoomToFitAll() {
+            if (equipments.length === 0) return;
+            
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+            
+            equipments.forEach(eq => {
+                minX = Math.min(minX, eq.x);
+                minY = Math.min(minY, eq.y);
+                maxX = Math.max(maxX, eq.x + 200); 
+                maxY = Math.max(maxY, eq.y + 150);
+            });
+            
+            const wrapper = document.getElementById('workspace-wrapper');
+            const wrapperWidth = wrapper.clientWidth;
+            const wrapperHeight = wrapper.clientHeight;
+            
+            const contentWidth = maxX - minX + 400; // Marges
+            const contentHeight = maxY - minY + 400;
+            
+            const zoomX = wrapperWidth / contentWidth;
+            const zoomY = wrapperHeight / contentHeight;
+            
+            currentZoom = Math.min(zoomX, zoomY, 1.0); 
+            document.getElementById('workspace-container').style.transform = `scale(${currentZoom})`;
+            
+            wrapper.scrollLeft = (minX - 200) * currentZoom;
+            wrapper.scrollTop = (minY - 200) * currentZoom;
         }
 
         function updateConnectionsOnly() {
@@ -925,7 +980,7 @@
 
         function endDrag() { 
             activeDragId = null; 
-            markAsUnsaved(); // Modifié : changement de position = modif
+            markAsUnsaved(); 
             document.removeEventListener('mousemove', onDrag);
             document.removeEventListener('touchmove', onDrag);
             document.removeEventListener('mouseup', endDrag);
@@ -954,7 +1009,7 @@
                 });
                 
                 selectedEquipmentId = null;
-                markAsUnsaved(); // Modifié
+                markAsUnsaved(); 
                 updateFloatingButtons();
                 render();
                 showToast("✅ Équipement supprimé");
@@ -1079,8 +1134,9 @@
             } else {
                 // AJOUT
                 const radioMode = document.getElementById('radioMode').value;
-                let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom;
-                let scrollY = (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom;
+                /* MODIFIÉ : Position des nouveaux équipements ajustée pour grand workspace */
+                let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 200) / currentZoom;
+                let scrollY = (document.getElementById('workspace-wrapper').scrollTop + 300) / currentZoom;
                 
                 if (suggestedX !== null && suggestedY !== null) {
                     scrollX = suggestedX;
@@ -1120,7 +1176,7 @@
                 }
             }
 
-            markAsUnsaved(); // Modifié
+            markAsUnsaved(); 
             selectedEquipmentId = null;
             updateFloatingButtons();
             render(); 
@@ -1142,7 +1198,7 @@
 
         function checkInput() { 
             document.getElementById('btnDownload').classList.toggle('disabled', !document.getElementById('siteName').value);
-            markAsUnsaved(); // Modifié: Changement de nom = modif
+            markAsUnsaved(); 
         }
 
         function downloadPDF() {
