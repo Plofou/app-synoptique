@@ -252,7 +252,16 @@
                 </div>
             </div>
 
-            <div class="form-group"><label>Localisation</label><input type="text" id="newLocation" placeholder="Ex: Baie de brassage"></div>
+            <div class="form-group" id="locationGroup">
+                <label id="locationLabel">Localisation</label>
+                <input type="text" id="newLocation" placeholder="Ex: Baie de brassage">
+            </div>
+
+            <div class="form-group" id="locationPRGroup" style="display:none;">
+                <label>Localisation PR</label>
+                <input type="text" id="newLocationPR" placeholder="Ex: Toit bâtiment B">
+            </div>
+
             <div class="form-group"><label>Connecté à</label><select id="newParent"><option value="">-- Racine --</option></select></div>
             <button id="modalActionBtn" class="btn-full btn-primary" onclick="addEquipment()">Ajouter</button>
             <button class="btn-full btn-cancel" onclick="closeAddModal()">Annuler</button>
@@ -302,19 +311,16 @@
             }
         };
 
-        /* AJOUTÉ SYSTÈME PONTS RADIO : Données spécifiques */
         const radioData = {
             pe: { names: [], ips: [] },
             pr: { names: [], ips: [] },
             couples: []
         };
 
-        // Génération des données PE/PR (1 à 19)
         for (let i = 1; i <= 19; i++) {
             const peName = `PE${i}`;
             const prName = `PR${i}`;
             
-            // Logique IP selon la demande : 1-9 -> +10/20, 10-19 -> +20/30
             let peIpSuffix = (i <= 9) ? (10 + i) : (20 + i); 
             let prIpSuffix = (i <= 9) ? (20 + i) : (30 + i);
 
@@ -406,20 +412,21 @@
         }
 
         // --- GESTION FORMULAIRE INTELLIGENT ---
-        /* AJOUTÉ SYSTÈME PONTS RADIO : updateFormFields Modifié */
         function updateFormFields(type, currentName = '', currentIP = '') {
-            // Gestion affichage mode Radio
             const radioModeGroup = document.getElementById('radioModeGroup');
+            
+            // MODIFIÉ : Double localisation PE/PR - Reset interface standard
+            document.getElementById('locationLabel').innerText = "Localisation";
+            document.getElementById('locationPRGroup').style.display = 'none';
+
             if (type === 'radio') {
                 radioModeGroup.style.display = 'block';
-                // Trigger update based on current mode
                 updateRadioFields(currentName, currentIP);
                 return;
             } else {
                 radioModeGroup.style.display = 'none';
             }
 
-            // Logique standard pour les autres types
             const presets = presetsByType[type];
             if (presets) {
                 const nameIndex = presets.names.indexOf(currentName);
@@ -431,14 +438,17 @@
             }
         }
 
-        // Nouvelle fonction dédiée Radio
         function updateRadioFields(currentName = '', currentIP = '') {
             const mode = document.getElementById('radioMode').value;
             const nameContainer = document.getElementById('nameFieldContainer');
             const ipContainer = document.getElementById('ipFieldContainer');
 
             if (mode === 'couple') {
-                // Mode Couple : Liste des couples, Pas d'IP (Auto)
+                // MODIFIÉ : Double localisation PE/PR - Interface spécifique
+                document.getElementById('locationLabel').innerText = "Localisation PE";
+                document.getElementById('locationPRGroup').style.display = 'block';
+                document.getElementById('newLocation').placeholder = "Ex: Baie de brassage";
+
                 let html = `<select id="newDeviceName">`;
                 html += `<option value="">-- Choisir Couple --</option>`;
                 radioData.couples.forEach((couple, index) => {
@@ -447,26 +457,27 @@
                 html += `<option value="__manual__">Saisie manuelle</option></select>`;
                 nameContainer.innerHTML = html;
                 
-                // IP désactivé/caché pour couple
                 ipContainer.innerHTML = `<input type="text" id="newIP" value="Automatique (2 IPs)" disabled style="background:#eee; color:#666;">`;
             } 
             else if (mode === 'pe') {
-                // Mode PE seul
+                // MODIFIÉ : Double localisation PE/PR - Reset standard
+                document.getElementById('locationLabel').innerText = "Localisation";
+                document.getElementById('locationPRGroup').style.display = 'none';
                 renderRadioSelects(radioData.pe, currentName, currentIP);
             } 
             else if (mode === 'pr') {
-                // Mode PR seul
+                // MODIFIÉ : Double localisation PE/PR - Reset standard
+                document.getElementById('locationLabel').innerText = "Localisation";
+                document.getElementById('locationPRGroup').style.display = 'none';
                 renderRadioSelects(radioData.pr, currentName, currentIP);
             }
         }
 
-        // Écouteur pour le changement de mode radio
         document.getElementById('radioMode').addEventListener('change', function() {
             updateRadioFields();
         });
 
         function renderRadioSelects(data, nameVal, ipVal) {
-            // Name Select
             let nameHtml = `<select id="newDeviceName" onchange="syncRadioIP(this)">`;
             nameHtml += `<option value="">-- Choisir --</option>`;
             data.names.forEach((name, index) => {
@@ -476,7 +487,6 @@
             nameHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
             document.getElementById('nameFieldContainer').innerHTML = nameHtml;
 
-            // IP Select
             let ipHtml = `<select id="newIP">`;
             ipHtml += `<option value="">-- Auto --</option>`;
             data.ips.forEach((ip) => {
@@ -486,7 +496,6 @@
             ipHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
             document.getElementById('ipFieldContainer').innerHTML = ipHtml;
 
-            // Listen for manual IP
             document.getElementById('newIP').addEventListener('change', function() {
                 if (this.value === '__manual__') renderInputs('', '');
             });
@@ -609,13 +618,11 @@
             document.getElementById('workspace-wrapper').scrollTop = 0;
         }
 
-        /* AJOUTÉ SYSTÈME PONTS RADIO : Dessin ligne pointillée */
         function updateConnectionsOnly() {
             const layer = document.getElementById('connections-layer');
             layer.innerHTML = ''; 
             
             equipments.forEach(eq => {
-                // 1. Ligne Parent (Bleue)
                 if (eq.parent) {
                     const parent = equipments.find(e => e.id === eq.parent);
                     if (parent) {
@@ -629,18 +636,15 @@
                     }
                 }
 
-                // 2. Ligne Couple Radio (Pointillée Noire)
-                // On vérifie id < linkedTo pour ne dessiner la ligne qu'une seule fois par couple
                 if (eq.linkedTo && eq.id < eq.linkedTo) {
                     const partner = equipments.find(e => e.id === eq.linkedTo);
                     if (partner) {
                         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        // Ligne directe centre à centre (ajusté pour le haut de l'icône)
                         const d = `M ${eq.x + 80} ${eq.y + 30} L ${partner.x + 80} ${partner.y + 30}`;
                         path.setAttribute("d", d);
                         path.setAttribute("stroke", "black");
                         path.setAttribute("stroke-width", "2");
-                        path.setAttribute("stroke-dasharray", "5,5"); // Pointillé
+                        path.setAttribute("stroke-dasharray", "5,5"); 
                         path.setAttribute("fill", "none");
                         layer.appendChild(path);
                     }
@@ -733,7 +737,6 @@
         function deleteSelectedEquipment() {
             if (!selectedEquipmentId) return;
             if(confirm("Supprimer cet équipement ?")) {
-                // Si on supprime un élément d'un couple, on retire le lien sur l'autre
                 const target = equipments.find(e => e.id === selectedEquipmentId);
                 if (target && target.linkedTo) {
                     const partner = equipments.find(e => e.id === target.linkedTo);
@@ -763,11 +766,12 @@
             document.getElementById('modalTitle').innerText = "Nouvel Équipement";
             document.getElementById('modalActionBtn').innerText = "Ajouter";
             document.getElementById('newType').value = 'switch';
-            document.getElementById('radioMode').value = 'couple'; // Reset mode default
+            document.getElementById('radioMode').value = 'couple'; 
             
             updateFormFields('switch'); 
             
             document.getElementById('newLocation').value = '';
+            document.getElementById('newLocationPR').value = '';
             document.getElementById('newParent').value = '';
             document.getElementById('addModal').style.display = 'flex';
         }
@@ -787,19 +791,39 @@
             
             document.getElementById('newType').value = eq.type;
             
-            // Si c'est un radio, on ne remet pas le mode "Couple" car il est déjà créé
-            // On considère qu'on édite un élément individuel en mode PE ou PR ou Manuel
             if (eq.type === 'radio') {
                 document.getElementById('radioModeGroup').style.display = 'block';
-                // Simplification pour l'édition : on laisse l'utilisateur gérer
-                // Idéalement on détecterait si c'est un PE ou PR via le nom
-                document.getElementById('radioMode').value = eq.deviceName.startsWith('PE') ? 'pe' : 'pr';
-                updateRadioFields(eq.deviceName, eq.ip);
+                
+                // MODIFIÉ : Double localisation PE/PR - Gestion Mode Édition
+                if (eq.linkedTo) {
+                    // C'est un couple
+                    document.getElementById('radioMode').value = 'couple';
+                    updateRadioFields(eq.deviceName, eq.ip); // Récupère champs mode couple
+                    
+                    const partner = equipments.find(e => e.id === eq.linkedTo);
+                    
+                    // Déterminer qui est PE et qui est PR pour le remplissage
+                    // On assume que le nom commence par PE ou PR, sinon fallback ID
+                    let isPE = eq.deviceName.startsWith('PE') || (eq.id < partner.id);
+                    
+                    if (isPE) {
+                        document.getElementById('newLocation').value = eq.loc;
+                        document.getElementById('newLocationPR').value = partner ? partner.loc : '';
+                    } else {
+                        document.getElementById('newLocation').value = partner ? partner.loc : '';
+                        document.getElementById('newLocationPR').value = eq.loc;
+                    }
+                } else {
+                    // C'est un radio seul
+                    document.getElementById('radioMode').value = eq.deviceName.startsWith('PE') ? 'pe' : 'pr';
+                    updateRadioFields(eq.deviceName, eq.ip);
+                    document.getElementById('newLocation').value = eq.loc;
+                }
             } else {
                 updateFormFields(eq.type, eq.deviceName, eq.ip);
+                document.getElementById('newLocation').value = eq.loc;
             }
             
-            document.getElementById('newLocation').value = eq.loc;
             document.getElementById('newParent').value = eq.parent || '';
             document.getElementById('addModal').style.display = 'flex';
         }
@@ -813,22 +837,46 @@
         /* AJOUTÉ SYSTÈME PONTS RADIO : Logique d'ajout */
         function addEquipment() {
             const type = document.getElementById('newType').value;
-            const loc = document.getElementById('newLocation').value || "Lieu";
+            // MODIFIÉ : Double localisation PE/PR - Récupération des deux champs
+            const locPE = document.getElementById('newLocation').value || "Lieu PE";
+            const locPR = document.getElementById('newLocationPR').value || "Lieu PR";
             const parent = document.getElementById('newParent').value || null;
             
-            // Récupération des valeurs (sauf si mode couple)
             const deviceName = document.getElementById('newDeviceName').value || "Appareil";
             const ip = document.getElementById('newIP').value || "";
 
             if (editingEquipmentId) {
-                // EDITION SIMPLE
+                // EDITION
                 const eq = equipments.find(e => e.id === editingEquipmentId);
+                const radioMode = document.getElementById('radioMode').value;
+
                 if (eq) {
-                    eq.type = type;
-                    eq.deviceName = deviceName;
-                    eq.ip = ip;
-                    eq.loc = loc;
-                    eq.parent = parent;
+                    if (eq.type === 'radio' && radioMode === 'couple' && eq.linkedTo) {
+                        // Mise à jour Couple
+                        const partner = equipments.find(e => e.id === eq.linkedTo);
+                        let isPE = eq.deviceName.startsWith('PE') || (eq.id < partner.id);
+                        
+                        if (isPE) {
+                            eq.loc = locPE;
+                            if(partner) partner.loc = locPR;
+                        } else {
+                            eq.loc = locPR;
+                            if(partner) partner.loc = locPE;
+                        }
+                        // Note: Pour simplifier l'édition de couple, on ne met à jour que la loc ici 
+                        // car le nom/ip est complexe à changer pour 2 items en même temps via ce formulaire simple
+                        // Mais on applique quand même le parent
+                        eq.parent = parent;
+                        if(partner) partner.parent = parent;
+
+                    } else {
+                        // Mise à jour Standard
+                        eq.type = type;
+                        eq.deviceName = deviceName;
+                        eq.ip = ip;
+                        eq.loc = locPE; // Utilise le champ standard (qui est #newLocation)
+                        eq.parent = parent;
+                    }
                     showToast("Équipement modifié !");
                 }
             } else {
@@ -843,31 +891,30 @@
                     const index = select.value;
                     
                     if (index === "" || index === "__manual__") {
-                        // Fallback manuel si pas de couple choisi (rare)
-                        addSingleNode(type, deviceName, ip, loc, parent, scrollX, scrollY);
+                        addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
                     } else {
                         const coupleData = radioData.couples[index];
                         const idPE = 'eq-' + Date.now();
                         const idPR = 'eq-' + (Date.now() + 1);
 
-                        // Création PE
+                        // Création PE (avec locPE)
                         equipments.push({
                             id: idPE, type: 'radio', deviceName: coupleData.peName, ip: coupleData.peIp,
-                            loc: loc, parent: parent, x: scrollX, y: scrollY,
+                            loc: locPE, parent: parent, x: scrollX, y: scrollY,
                             linkedTo: idPR
                         });
 
-                        // Création PR (décalé de 200px)
+                        // Création PR (avec locPR)
                         equipments.push({
                             id: idPR, type: 'radio', deviceName: coupleData.prName, ip: coupleData.prIp,
-                            loc: loc, parent: parent, x: scrollX + 200, y: scrollY,
+                            loc: locPR, parent: parent, x: scrollX + 200, y: scrollY,
                             linkedTo: idPE
                         });
                         showToast("Couple Radio Ajouté ! 📡");
                     }
                 } else {
-                    // AJOUT STANDARD
-                    addSingleNode(type, deviceName, ip, loc, parent, scrollX, scrollY);
+                    // AJOUT STANDARD (utilise locPE qui est la valeur de #newLocation)
+                    addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
                 }
             }
 
