@@ -112,7 +112,7 @@
             z-index: 250;
         }
 
-        /* AJOUTÉ POUR CACHER BOUTONS MODAL */
+        /* CACHER BOUTONS MODAL */
         .floating-ui.modal-open { display: none !important; }
 
         .trash-zone { left: 20px; flex-direction: column-reverse; gap: 15px; }
@@ -212,7 +212,7 @@
 
     <div class="modal-overlay" id="addModal">
         <div class="modal-content">
-            <h3>Nouvel Équipement</h3>
+            <h3 id="modalTitle">Nouvel Équipement</h3>
             <div class="form-group">
                 <label>Type d'appareil</label>
                 <select id="newType">
@@ -233,7 +233,7 @@
             <div class="form-group"><label>Adresse IP</label><input type="text" id="newIP" placeholder="Ex: 192.168.1.10"></div>
             <div class="form-group"><label>Localisation</label><input type="text" id="newLocation" placeholder="Ex: Baie de brassage"></div>
             <div class="form-group"><label>Connecté à</label><select id="newParent"><option value="">-- Racine --</option></select></div>
-            <button class="btn-full btn-primary" onclick="addEquipment()">Ajouter</button>
+            <button id="modalActionBtn" class="btn-full btn-primary" onclick="addEquipment()">Ajouter</button>
             <button class="btn-full btn-cancel" onclick="closeAddModal()">Annuler</button>
         </div>
     </div>
@@ -251,6 +251,9 @@
     <script>
         let selectedEquipmentId = null;
         let currentZoom = 1;
+        
+        // AJOUTÉ POUR ÉDITION : Variable pour stocker l'ID en cours d'édition
+        let editingEquipmentId = null; 
 
         function checkPass() {
             if(document.getElementById('pass-field').value === "1234") {
@@ -259,7 +262,7 @@
         }
 
         let equipments = [
-            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '172.16.0.254', loc: 'Baie de Brassage', x: 200, y: 100, parent: null }
+            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 200, y: 100, parent: null }
         ];
 
         function getIcon(type) {
@@ -473,12 +476,12 @@
                     updateFloatingButtons();
                 });
 
+                // AJOUTÉ POUR ÉDITION : Double-clic pour ouvrir en mode édition
                 div.addEventListener('dblclick', (e) => {
                     e.stopPropagation();
-                    if(eq.photo) {
-                        selectedEquipmentId = eq.id;
-                        openPhotoViewer(eq.photo);
-                    }
+                    // On empêche l'ouverture si on est en train de draguer (drapeau dans onDrag si nécessaire)
+                    // Mais ici le dblclick est distinct du drag grâce à la logique HTML native
+                    openEditModal(eq.id);
                 });
 
                 document.getElementById('workspace-container').appendChild(div);
@@ -563,32 +566,106 @@
         }
 
         function openAddModal() {
-            // AJOUTÉ POUR CACHER BOUTONS MODAL
             document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
 
             const sel = document.getElementById('newParent');
             sel.innerHTML = '<option value="">-- Racine --</option>';
             equipments.forEach(eq => sel.innerHTML += `<option value="${eq.id}">${eq.deviceName}</option>`);
+            
+            // AJOUTÉ POUR ÉDITION : Mode AJOUT par défaut
+            editingEquipmentId = null;
+            document.getElementById('modalTitle').innerText = "Nouvel Équipement";
+            document.getElementById('modalActionBtn').innerText = "Ajouter";
+            document.getElementById('newType').value = 'switch';
+            document.getElementById('newDeviceName').value = '';
+            document.getElementById('newIP').value = '';
+            document.getElementById('newLocation').value = '';
+            document.getElementById('newParent').value = '';
+
             document.getElementById('addModal').style.display = 'flex';
         }
-        function closeAddModal() { 
-            document.getElementById('addModal').style.display = 'none'; 
-            // AJOUTÉ POUR CACHER BOUTONS MODAL
-            document.querySelectorAll('.floating-ui').forEach(el => el.classList.remove('modal-open'));
+
+        // AJOUTÉ POUR ÉDITION : Fonction pour ouvrir le modal en mode édition
+        function openEditModal(id) {
+            const eq = equipments.find(e => e.id === id);
+            if (!eq) return;
+
+            document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
+
+            // Préparer la liste des parents (pour éviter de se sélectionner soi-même comme parent)
+            const sel = document.getElementById('newParent');
+            sel.innerHTML = '<option value="">-- Racine --</option>';
+            equipments.forEach(e => {
+                if (e.id !== id) { // On ne peut pas être son propre parent
+                    sel.innerHTML += `<option value="${e.id}">${e.deviceName}</option>`;
+                }
+            });
+
+            // Remplir les champs avec les données existantes
+            editingEquipmentId = id;
+            document.getElementById('modalTitle').innerText = "Modifier l'Équipement";
+            document.getElementById('modalActionBtn').innerText = "Modifier";
+            
+            document.getElementById('newType').value = eq.type;
+            document.getElementById('newDeviceName').value = eq.deviceName;
+            document.getElementById('newIP').value = eq.ip;
+            document.getElementById('newLocation').value = eq.loc;
+            document.getElementById('newParent').value = eq.parent || '';
+
+            document.getElementById('addModal').style.display = 'flex';
         }
 
+        function closeAddModal() { 
+            document.getElementById('addModal').style.display = 'none'; 
+            document.querySelectorAll('.floating-ui').forEach(el => el.classList.remove('modal-open'));
+            
+            // AJOUTÉ POUR ÉDITION : Reset des variables d'édition à la fermeture
+            editingEquipmentId = null;
+            document.getElementById('modalTitle').innerText = "Nouvel Équipement";
+            document.getElementById('modalActionBtn').innerText = "Ajouter";
+        }
+
+        // MODIFIÉ POUR ÉDITION : Gestion du mode Ajout ou Édition
         function addEquipment() {
-            const newEq = {
-                id: 'eq-' + Date.now(),
-                type: document.getElementById('newType').value,
-                deviceName: document.getElementById('newDeviceName').value || "Appareil",
-                ip: document.getElementById('newIP').value || "0.0.0.0",
-                loc: document.getElementById('newLocation').value || "Lieu",
-                parent: document.getElementById('newParent').value || null,
-                x: (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom, 
-                y: (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom
-            };
-            equipments.push(newEq); render(); closeAddModal();
+            const type = document.getElementById('newType').value;
+            const deviceName = document.getElementById('newDeviceName').value || "Appareil";
+            const ip = document.getElementById('newIP').value || "0.0.0.0";
+            const loc = document.getElementById('newLocation').value || "Lieu";
+            const parent = document.getElementById('newParent').value || null;
+
+            if (editingEquipmentId) {
+                // MODE ÉDITION : Mise à jour de l'existant
+                const eq = equipments.find(e => e.id === editingEquipmentId);
+                if (eq) {
+                    eq.type = type;
+                    eq.deviceName = deviceName;
+                    eq.ip = ip;
+                    eq.loc = loc;
+                    eq.parent = parent;
+                    showToast("Équipement modifié !");
+                }
+            } else {
+                // MODE AJOUT : Création d'un nouveau
+                const newEq = {
+                    id: 'eq-' + Date.now(),
+                    type: type,
+                    deviceName: deviceName,
+                    ip: ip,
+                    loc: loc,
+                    parent: parent,
+                    x: (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom, 
+                    y: (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom
+                };
+                equipments.push(newEq);
+                showToast("Équipement ajouté !");
+            }
+
+            // AJOUTÉ POUR ÉDITION : Désélectionner après modification
+            selectedEquipmentId = null;
+            updateFloatingButtons();
+
+            render(); 
+            closeAddModal();
         }
 
         function checkInput() { document.getElementById('btnDownload').classList.toggle('disabled', !document.getElementById('siteName').value); }
