@@ -119,6 +119,7 @@
         /* Afficher le bouton + quand le noeud est sélectionné */
         .node.selected .quick-add-btn { display: flex; }
 
+        /* MODIFIÉ : Photo AU-DESSUS de l'icône - Nouveaux styles pour la section photo */
         .photo-section {
             position: relative;
             width: 100%;
@@ -130,38 +131,60 @@
             cursor: pointer;
         }
 
-        .field-photo { width: 100%; height: 100%; object-fit: cover; }
+        .field-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 
         .photo-badge {
-            position: absolute; top: 5px; right: 5px;
-            background: rgba(0, 0, 0, 0.6); color: white;
-            padding: 3px 6px; border-radius: 4px; font-size: 14px; pointer-events: none;
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+            pointer-events: none;
         }
 
         /* --- UI FLOTTANTE (Poubelle & Zoom & Photo) --- */
         .floating-ui {
-            position: fixed; bottom: 30px; display: flex; align-items: center; z-index: 250;
+            position: fixed;
+            bottom: 30px;
+            display: flex;
+            align-items: center;
+            z-index: 250;
         }
 
+        /* CACHER BOUTONS MODAL */
         .floating-ui.modal-open { display: none !important; }
 
         .trash-zone { left: 20px; flex-direction: column-reverse; gap: 15px; }
         .zoom-zone { right: 20px; gap: 10px; flex-direction: column; }
 
         .fab-btn {
-            width: 55px; height: 55px; border-radius: 50%; border: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 24px;
+            width: 55px; height: 55px;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            font-size: 24px;
             display: flex; justify-content: center; align-items: center;
-            cursor: pointer; transition: transform 0.1s;
+            cursor: pointer;
+            transition: transform 0.1s;
         }
         .fab-btn:active { transform: scale(0.95); }
 
+        /* Style Poubelle */
         #trash-btn { background: var(--danger); color: white; display: none; }
         #trash-btn.show { display: flex; animation: popIn 0.2s; }
 
+        /* Style Bouton Photo */
         #photo-btn { background: var(--primary); color: white; display: none; margin-bottom: 5px;}
         #photo-btn.show { display: flex; animation: popIn 0.2s; }
 
+        /* Style Zoom */
         .zoom-btn { background: white; color: #333; font-weight: bold; font-size: 28px; }
 
         @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
@@ -174,8 +197,10 @@
         /* MODAL VISUALISATION PHOTO */
         #photo-modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center;
-            z-index: 300; flex-direction: column;
+            background: rgba(0,0,0,0.9);
+            display: none; justify-content: center; align-items: center;
+            z-index: 300;
+            flex-direction: column;
         }
         #full-photo { max-width: 95%; max-height: 80vh; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .photo-controls { margin-top: 20px; display: flex; gap: 20px; }
@@ -902,9 +927,15 @@
                     if (eq.type === 'radio' && radioMode === 'couple' && eq.linkedTo) {
                         const partner = equipments.find(e => e.id === eq.linkedTo);
                         let isPE = eq.deviceName.startsWith('PE') || (eq.id < partner.id);
-                        if (isPE) { eq.loc = locPE; if(partner) partner.loc = locPR; } 
-                        else { eq.loc = locPR; if(partner) partner.loc = locPE; }
-                        eq.parent = parent; if(partner) partner.parent = parent;
+                        if (isPE) { 
+                            eq.loc = locPE; 
+                            eq.parent = null; /* MODIFIÉ : PE sans parent pour éviter double ligne */
+                            if(partner) { partner.loc = locPR; partner.parent = parent; }
+                        } else { 
+                            eq.loc = locPR; 
+                            eq.parent = parent; 
+                            if(partner) { partner.loc = locPE; partner.parent = null; /* MODIFIÉ */ }
+                        }
                     } else {
                         eq.type = type; eq.deviceName = deviceName; eq.ip = ip; eq.loc = locPE; eq.parent = parent;
                     }
@@ -937,12 +968,16 @@
                         const idPE = 'eq-' + Date.now();
                         const idPR = 'eq-' + (Date.now() + 1);
 
+                        // Création PE (avec locPE)
                         equipments.push({
                             id: idPE, type: 'radio', deviceName: coupleData.peName, ip: coupleData.peIp,
-                            loc: locPE, parent: parent, x: scrollX, y: scrollY,
+                            loc: locPE, 
+                            parent: null, /* MODIFIÉ : PE sans parent pour éviter double ligne */
+                            x: scrollX, y: scrollY,
                             linkedTo: idPR
                         });
 
+                        // Création PR (avec locPR)
                         equipments.push({
                             id: idPR, type: 'radio', deviceName: coupleData.prName, ip: coupleData.prIp,
                             loc: locPR, parent: parent, x: scrollX + 200, y: scrollY,
