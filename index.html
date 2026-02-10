@@ -18,17 +18,14 @@
             --warning: #FF9500;
         }
 
-        /* CORRECTION : Workspace plein écran (Body en Flex Column) */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; 
-            padding: 0;
+            margin: 0; padding: 0;
             background-color: var(--bg);
-            height: 100vh; /* Prend toute la hauteur */
+            height: 100vh;
             width: 100%;
-            display: flex; /* Active Flexbox */
-            flex-direction: column; /* Empile verticalement */
-            overflow: hidden; /* Empêche le scroll global */
+            display: flex; flex-direction: column;
+            overflow: hidden;
             transition: background-color 0.3s;
         }
 
@@ -46,12 +43,9 @@
         .header {
             background-color: var(--card);
             padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
+            display: flex; align-items: center; gap: 15px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            z-index: 50;
-            flex-shrink: 0; 
+            z-index: 50; flex-shrink: 0;
             transition: background-color 0.3s;
         }
 
@@ -92,7 +86,6 @@
         .btn-icon { font-size: 20px; }
         .btn-label { font-size: 11px; font-weight: 600; color: #333; }
 
-        /* Button Colors */
         .save-btn { border: 2px solid var(--success); }
         .save-btn:hover { background: #f0fdf4; }
         .open-btn { border: 2px solid var(--primary); }
@@ -102,7 +95,6 @@
         .add-btn { border: 2px solid var(--primary); }
         .add-btn:hover { background: #eff6ff; }
 
-        /* Site Input */
         .site-name-input {
             flex: 0 0 auto; width: 250px; padding: 10px 15px;
             border: 2px solid var(--primary); border-radius: 8px;
@@ -127,6 +119,28 @@
         body.dark-mode .save-status.saved { background: #1b3320; color: #4caf50; }
         body.dark-mode .save-status.unsaved { background: #3b2a1a; color: #ff9800; }
         
+        /* AJOUTÉ : Indicateur zoom en % */
+        .zoom-indicator {
+            position: fixed;
+            bottom: 220px;  /* Au-dessus des boutons de zoom */
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 250;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        body.dark-mode .zoom-indicator {
+            background: rgba(44, 44, 44, 0.95);
+            color: #e0e0e0;
+        }
+
         /* --- WORKSPACE & ZOOM --- */
         #workspace-wrapper { 
             flex: 1; 
@@ -144,8 +158,7 @@
             width: 10000px; 
             height: 10000px; 
             background-image: radial-gradient(#ccc 1px, transparent 1px); 
-            /* MODIFIÉ : Grille légèrement plus espacée */
-            background-size: 30px 30px; 
+            background-size: 20px 20px; 
             touch-action: none; 
             transform-origin: 0 0; 
             transition: transform 0.1s ease-out; 
@@ -170,7 +183,6 @@
         .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
         .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
 
-        /* Bouton + rapide sur équipement */
         .quick-add-btn {
             position: absolute; top: -12px; right: -12px;
             width: 28px; height: 28px;
@@ -182,7 +194,6 @@
         .quick-add-btn:hover { transform: scale(1.1); }
         .quick-add-btn:active { transform: scale(0.95); }
 
-        /* Bouton suppression sur équipement */
         .quick-delete-btn {
             position: absolute; top: -12px; left: -12px;
             width: 28px; height: 28px;
@@ -210,25 +221,16 @@
             padding: 3px 6px; border-radius: 4px; font-size: 14px; pointer-events: none;
         }
 
-        /* AJOUTÉ : Indicateur de position */
         .position-indicator {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 12px;
-            z-index: 300;
-            pointer-events: none;
+            position: fixed; bottom: 10px; left: 10px;
+            background: rgba(0, 0, 0, 0.7); color: white;
+            padding: 8px 12px; border-radius: 6px;
+            font-family: monospace; font-size: 12px;
+            z-index: 300; pointer-events: none;
         }
 
         /* --- UI FLOTTANTE --- */
-        .floating-ui {
-            position: fixed; bottom: 30px; display: flex; align-items: center; z-index: 250;
-        }
+        .floating-ui { position: fixed; bottom: 30px; display: flex; align-items: center; z-index: 250; }
         .floating-ui.modal-open { display: none !important; }
         .trash-zone { left: 20px; flex-direction: column-reverse; gap: 15px; }
         .zoom-zone { right: 20px; gap: 10px; flex-direction: column; }
@@ -329,6 +331,7 @@
     </div>
 
     <div class="floating-ui zoom-zone">
+        <div class="zoom-indicator" id="zoomIndicator">100%</div>
         <button class="fab-btn zoom-btn" onclick="updateZoom(0.1)">+</button>
         <button class="fab-btn zoom-btn" style="font-size:24px;" onclick="zoomToFitAll()" title="Voir tout">⊡</button>
         <button class="fab-btn zoom-btn" style="font-size:20px;" onclick="resetZoom()">⌂</button>
@@ -474,7 +477,6 @@
             });
         }
 
-        // --- NOUVEAU HEADER AMÉLIORÉ (JS) ---
         function toggleDarkMode() {
             const isDark = document.getElementById('darkModeSwitch').checked;
             
@@ -489,7 +491,6 @@
             }
         }
 
-        // Charger la préférence dark mode au démarrage
         window.addEventListener('load', function() {
             const darkMode = localStorage.getItem('darkMode');
             if (darkMode === 'enabled') {
@@ -497,9 +498,13 @@
                 toggleDarkMode();
             }
             render(); 
+            updateZoomDisplay(); // Initial display
+            
+            // AJOUTÉ : Scroller vers le routeur principal (position 0,0) au chargement
+            document.getElementById('workspace-wrapper').scrollLeft = 0;
+            document.getElementById('workspace-wrapper').scrollTop = 0;
         });
 
-        // AJOUTÉ : Indicateur de position en temps réel
         document.getElementById('workspace-wrapper').addEventListener('scroll', function() {
             const x = Math.round(this.scrollLeft);
             const y = Math.round(this.scrollTop);
@@ -531,9 +536,9 @@
             } else { alert("Code incorrect"); }
         }
 
-        /* MODIFIÉ : Position initiale centrée dans le grand workspace */
+        /* MODIFIÉ : Routeur en (50, 50) */
         let equipments = [
-            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 5000, y: 100, parent: null }
+            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 50, y: 50, parent: null }
         ];
 
         function getIcon(type) {
@@ -794,24 +799,30 @@
             }
         }
 
+        // Fonction pour mettre à jour l'affichage du zoom
+        function updateZoomDisplay() {
+            const zoomPercent = Math.round(currentZoom * 100);
+            document.getElementById('zoomIndicator').textContent = zoomPercent + '%';
+        }
+
         function updateZoom(delta) {
             const newZoom = currentZoom + delta;
             // Limites de zoom agrandies pour le grand workspace
             if (newZoom >= 0.1 && newZoom <= 3.0) { 
                 currentZoom = newZoom;
                 document.getElementById('workspace-container').style.transform = `scale(${currentZoom})`;
+                updateZoomDisplay(); // AJOUTÉ
             }
         }
 
         function resetZoom() {
             currentZoom = 1;
             document.getElementById('workspace-container').style.transform = `scale(1)`;
-            // Centrer la vue sur le routeur
-            document.getElementById('workspace-wrapper').scrollLeft = 5000 - (window.innerWidth / 2);
+            document.getElementById('workspace-wrapper').scrollLeft = 0;
             document.getElementById('workspace-wrapper').scrollTop = 0;
+            updateZoomDisplay(); // AJOUTÉ
         }
 
-        // AJOUTÉ : Fonction Zoom to Fit All
         function zoomToFitAll() {
             if (equipments.length === 0) return;
             
@@ -840,6 +851,7 @@
             
             wrapper.scrollLeft = (minX - 200) * currentZoom;
             wrapper.scrollTop = (minY - 200) * currentZoom;
+            updateZoomDisplay(); // AJOUTÉ
         }
 
         function updateConnectionsOnly() {
@@ -1134,7 +1146,6 @@
             } else {
                 // AJOUT
                 const radioMode = document.getElementById('radioMode').value;
-                /* MODIFIÉ : Position des nouveaux équipements ajustée pour grand workspace */
                 let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 200) / currentZoom;
                 let scrollY = (document.getElementById('workspace-wrapper').scrollTop + 300) / currentZoom;
                 
