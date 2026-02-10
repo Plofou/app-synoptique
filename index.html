@@ -15,6 +15,7 @@
             --card: #FFFFFF;
             --border: #C6C6C8;
             --success: #34C759;
+            --warning: #FF9500;
         }
 
         body {
@@ -24,6 +25,7 @@
             height: 100dvh; width: 100%;
             display: flex; flex-direction: column;
             overflow: hidden;
+            transition: background-color 0.3s;
         }
 
         /* --- SÉCURITÉ --- */
@@ -36,23 +38,91 @@
         .auth-box { background: #2c2c2e; padding: 25px; border-radius: 16px; text-align: center; width: 80%; max-width: 300px; }
         .auth-input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #444; background: #1c1c1e; color: white; font-size: 1.2rem; text-align: center; box-sizing: border-box; }
 
-        /* --- HEADER --- */
+        /* --- NOUVEAU HEADER AMÉLIORÉ (CSS) --- */
         .header {
             background-color: var(--card);
-            padding-top: env(safe-area-inset-top); 
-            padding-bottom: 10px; padding-left: 15px; padding-right: 15px;
-            display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 50; flex-shrink: 0;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 50;
+            flex-shrink: 0;
+            transition: background-color 0.3s;
         }
-        .header input { border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 1rem; width: 100%; max-width: 160px; }
-        
-        .header-actions { display: flex; gap: 8px; }
-        
-        .header-btn { background: none; border: none; font-size: 1.4rem; padding: 5px; cursor: pointer; }
-        .header-btn.primary { color: var(--primary); font-weight: bold; }
-        .header-btn.save { color: var(--success); }
-        .header-btn.disabled { opacity: 0.3; pointer-events: none; }
 
+        /* Dark Mode Toggle */
+        .dark-mode-toggle { display: flex; align-items: center; gap: 8px; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(26px); }
+        .dark-mode-label { font-size: 18px; }
+
+        /* Save Status */
+        .save-status {
+            display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+            background: #f0f0f0; border-radius: 20px; font-size: 13px; font-weight: 500; min-width: 110px;
+            transition: all 0.3s;
+        }
+        .save-status.saved { background: #e8f5e9; color: #2e7d32; }
+        .save-status.unsaved { background: #fff3e0; color: #f57c00; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .status-dot { font-size: 12px; }
+
+        /* Header Actions */
+        .header-actions { display: flex; gap: 8px; flex: 1; }
+
+        .header-btn-labeled {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 2px; padding: 8px 12px; border: none; border-radius: 8px;
+            background: white; cursor: pointer; transition: all 0.2s; min-width: 70px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .header-btn-labeled:hover { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
+        .header-btn-labeled:active { transform: translateY(0); }
+        .header-btn-labeled.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+        
+        .btn-icon { font-size: 20px; }
+        .btn-label { font-size: 11px; font-weight: 600; color: #333; }
+
+        /* Button Colors */
+        .save-btn { border: 2px solid var(--success); }
+        .save-btn:hover { background: #f0fdf4; }
+        .open-btn { border: 2px solid var(--primary); }
+        .open-btn:hover { background: #eff6ff; }
+        .export-btn { border: 2px solid var(--warning); }
+        .export-btn:hover { background: #fff7ed; }
+        .add-btn { border: 2px solid var(--primary); }
+        .add-btn:hover { background: #eff6ff; }
+
+        /* Site Input */
+        .site-name-input {
+            flex: 0 0 auto; width: 250px; padding: 10px 15px;
+            border: 2px solid var(--primary); border-radius: 8px;
+            font-size: 15px; background: white; margin-left: auto;
+        }
+
+        /* --- DARK MODE STYLES --- */
+        body.dark-mode { background-color: #1a1a1a; color: #e0e0e0; }
+        body.dark-mode .header { background-color: #2c2c2c; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        body.dark-mode .site-name-input { background: #3a3a3a; color: white; border-color: #555; }
+        body.dark-mode #workspace-container { background-color: #1a1a1a; background-image: radial-gradient(#444 1px, transparent 1px); }
+        body.dark-mode .node { background: #2c2c2c; border-color: #555; color: #e0e0e0; }
+        body.dark-mode .node .device-name { color: #e0e0e0; }
+        body.dark-mode .modal-content { background: #2c2c2c; color: #e0e0e0; }
+        body.dark-mode .form-group input, body.dark-mode .form-group select { background: #3a3a3a; color: white; border-color: #555; }
+        body.dark-mode .header-btn-labeled { background: #3a3a3a; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        body.dark-mode .btn-label { color: #e0e0e0; }
+        body.dark-mode .save-btn:hover { background: #1b3320; }
+        body.dark-mode .open-btn:hover, body.dark-mode .add-btn:hover { background: #1a273b; }
+        body.dark-mode .export-btn:hover { background: #3b2a1a; }
+        body.dark-mode .save-status { background: #333; color: #aaa; }
+        body.dark-mode .save-status.saved { background: #1b3320; color: #4caf50; }
+        body.dark-mode .save-status.unsaved { background: #3b2a1a; color: #ff9800; }
+        
         /* --- WORKSPACE & ZOOM --- */
         #workspace-wrapper { 
             flex-grow: 1; 
@@ -61,6 +131,7 @@
             -webkit-overflow-scrolling: touch; 
             z-index: 1; 
             background-color: var(--bg);
+            transition: background-color 0.3s;
         }
         
         #workspace-container { 
@@ -84,6 +155,7 @@
             touch-action: none; 
             height: auto; 
             min-height: 120px;
+            transition: background-color 0.3s, border-color 0.3s;
         }
         .node.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.2); z-index: 10; }
         .node .icon { margin-bottom: 5px; height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; }
@@ -92,57 +164,36 @@
         .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
         .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
 
-        /* AJOUTÉ : Bouton + rapide sur équipement (DROITE) */
+        /* Bouton + rapide sur équipement */
         .quick-add-btn {
             position: absolute; top: -12px; right: -12px;
             width: 28px; height: 28px;
             background: #007AFF; color: white;
-            border-radius: 50%;
-            display: none; align-items: center; justify-content: center;
-            font-size: 20px; font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 101; transition: transform 0.1s;
+            border-radius: 50%; display: none; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 101; transition: transform 0.1s;
         }
         .quick-add-btn:hover { transform: scale(1.1); }
         .quick-add-btn:active { transform: scale(0.95); }
 
-        /* AJOUTÉ : Bouton suppression sur équipement (GAUCHE) */
+        /* Bouton suppression sur équipement */
         .quick-delete-btn {
-            position: absolute;
-            top: -12px;
-            left: -12px; /* Positionné à gauche */
-            width: 28px;
-            height: 28px;
-            background: #FF3B30; /* Rouge */
-            color: white;
-            border-radius: 50%;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 101;
-            transition: transform 0.1s;
+            position: absolute; top: -12px; left: -12px;
+            width: 28px; height: 28px;
+            background: #FF3B30; color: white;
+            border-radius: 50%; display: none; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 101; transition: transform 0.1s;
         }
         .quick-delete-btn:hover { transform: scale(1.1); background: #E62E25; }
         .quick-delete-btn:active { transform: scale(0.95); }
 
-        /* Afficher les boutons quand le noeud est sélectionné */
         .node.selected .quick-add-btn { display: flex; }
         .node.selected .quick-delete-btn { display: flex; }
 
         .photo-section {
-            position: relative;
-            width: 100%;
-            height: 100px;
-            margin-bottom: 8px;
-            border-radius: 8px 8px 4px 4px;
-            overflow: hidden;
-            background-color: #eee;
-            cursor: pointer;
+            position: relative; width: 100%; height: 100px; margin-bottom: 8px;
+            border-radius: 8px 8px 4px 4px; overflow: hidden; background-color: #eee; cursor: pointer;
         }
 
         .field-photo { width: 100%; height: 100%; object-fit: cover; }
@@ -157,9 +208,7 @@
         .floating-ui {
             position: fixed; bottom: 30px; display: flex; align-items: center; z-index: 250;
         }
-
         .floating-ui.modal-open { display: none !important; }
-
         .trash-zone { left: 20px; flex-direction: column-reverse; gap: 15px; }
         .zoom-zone { right: 20px; gap: 10px; flex-direction: column; }
 
@@ -170,9 +219,6 @@
             cursor: pointer; transition: transform 0.1s;
         }
         .fab-btn:active { transform: scale(0.95); }
-
-        /* SUPPRIMÉ : Bouton poubelle flottant (style supprimé ou caché) */
-        /* #trash-btn { background: var(--danger); ... } */
 
         #photo-btn { background: var(--primary); color: white; display: none; margin-bottom: 5px;}
         #photo-btn.show { display: flex; animation: popIn 0.2s; }
@@ -219,13 +265,42 @@
     <input type="file" id="photoInput" style="display:none" accept="image/*" onchange="processPhoto(this)">
 
     <div class="header">
-        <input type="text" id="siteName" placeholder="Nom du Site *" oninput="checkInput()">
-        <div class="header-actions">
-            <button class="header-btn save" onclick="saveProject()" title="Sauvegarder">💾</button>
-            <button class="header-btn" onclick="triggerLoad()" title="Ouvrir">📂</button>
-            <button class="header-btn disabled" id="btnDownload" onclick="downloadPDF()">⬇</button>
-            <button class="header-btn primary" onclick="openAddModal()">+</button>
+        <div class="dark-mode-toggle">
+            <label class="switch">
+                <input type="checkbox" id="darkModeSwitch" onchange="toggleDarkMode()">
+                <span class="slider"></span>
+            </label>
+            <span class="dark-mode-label">🌙</span>
         </div>
+
+        <div class="save-status saved" id="saveStatus">
+            <span class="status-dot">🟢</span>
+            <span class="status-text">Sauvegardé</span>
+        </div>
+
+        <div class="header-actions">
+            <button class="header-btn-labeled save-btn" onclick="saveProject()" title="Sauvegarder">
+                <span class="btn-icon">💾</span>
+                <span class="btn-label">Sauver</span>
+            </button>
+            
+            <button class="header-btn-labeled open-btn" onclick="triggerLoad()" title="Ouvrir">
+                <span class="btn-icon">📂</span>
+                <span class="btn-label">Ouvrir</span>
+            </button>
+            
+            <button class="header-btn-labeled export-btn disabled" id="btnDownload" onclick="downloadPDF()" title="Exporter en PDF">
+                <span class="btn-icon">⬇</span>
+                <span class="btn-label">Export PDF</span>
+            </button>
+            
+            <button class="header-btn-labeled add-btn" onclick="openAddModal()" title="Ajouter équipement">
+                <span class="btn-icon">+</span>
+                <span class="btn-label">Ajouter</span>
+            </button>
+        </div>
+
+        <input type="text" id="siteName" class="site-name-input" placeholder="Nom du site *" oninput="checkInput()">
     </div>
 
     <div class="floating-ui trash-zone">
@@ -319,6 +394,10 @@
         let editingEquipmentId = null;
         let suggestedX = null;
         let suggestedY = null;
+        
+        // Variables pour gérer le statut de sauvegarde
+        let lastSaved = null;
+        let hasUnsavedChanges = false;
 
         const presetsByType = {
             bullet: {
@@ -373,6 +452,52 @@
             });
         }
 
+        // --- NOUVEAU HEADER AMÉLIORÉ (JS) ---
+        function toggleDarkMode() {
+            const isDark = document.getElementById('darkModeSwitch').checked;
+            
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                document.querySelector('.dark-mode-label').textContent = '☀️';
+                localStorage.setItem('darkMode', 'enabled');
+            } else {
+                document.body.classList.remove('dark-mode');
+                document.querySelector('.dark-mode-label').textContent = '🌙';
+                localStorage.setItem('darkMode', 'disabled');
+            }
+        }
+
+        // Charger la préférence dark mode au démarrage
+        window.addEventListener('load', function() {
+            const darkMode = localStorage.getItem('darkMode');
+            if (darkMode === 'enabled') {
+                document.getElementById('darkModeSwitch').checked = true;
+                toggleDarkMode();
+            }
+            render(); // Lancer le rendu initial
+        });
+
+        // Mettre à jour le statut de sauvegarde
+        function updateSaveStatus(saved) {
+            const statusEl = document.getElementById('saveStatus');
+            
+            if (saved) {
+                statusEl.className = 'save-status saved';
+                statusEl.innerHTML = '<span class="status-dot">🟢</span><span class="status-text">Sauvegardé</span>';
+                hasUnsavedChanges = false;
+                lastSaved = new Date();
+            } else {
+                statusEl.className = 'save-status unsaved';
+                statusEl.innerHTML = '<span class="status-dot">🟡</span><span class="status-text">Non sauvegardé</span>';
+                hasUnsavedChanges = true;
+            }
+        }
+
+        // Détecter les modifications non sauvegardées
+        function markAsUnsaved() {
+            updateSaveStatus(false);
+        }
+
         function checkPass() {
             if(document.getElementById('pass-field').value === "1234") {
                 document.getElementById('auth-overlay').style.display = 'none';
@@ -409,7 +534,9 @@
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
-            showToast("Sauvegarde effectuée ! 💾");
+            
+            updateSaveStatus(true); // Marquer comme sauvegardé
+            showToast("💾 Projet sauvegardé !");
         }
 
         function triggerLoad() { document.getElementById('fileLoader').click(); }
@@ -427,6 +554,8 @@
                         let fileName = file.name.replace('.json', '');
                         if(fileName.includes('Synoptique_')) fileName = fileName.replace('Synoptique_', '');
                         if(fileName !== 'SansNom') document.getElementById('siteName').value = fileName;
+                        
+                        updateSaveStatus(true); // Considéré comme sauvegardé après chargement
                         showToast("Projet chargé avec succès ! 📂");
                     } else { alert("Format de fichier invalide."); }
                 } catch(err) { alert("Erreur lors de la lecture du fichier."); }
@@ -602,7 +731,12 @@
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                         if (selectedEquipmentId) {
                             const eq = equipments.find(e => e.id === selectedEquipmentId);
-                            if (eq) { eq.photo = dataUrl; render(); showToast("Photo ajoutée ! 📷"); }
+                            if (eq) { 
+                                eq.photo = dataUrl; 
+                                markAsUnsaved(); // Modifié
+                                render(); 
+                                showToast("Photo ajoutée ! 📷"); 
+                            }
                         }
                     }
                 }
@@ -621,7 +755,13 @@
             if (confirm("Supprimer cette photo ?")) {
                 if (selectedEquipmentId) {
                     const eq = equipments.find(e => e.id === selectedEquipmentId);
-                    if (eq && eq.photo) { delete eq.photo; render(); closePhotoViewer(); showToast("Photo supprimée"); }
+                    if (eq && eq.photo) { 
+                        delete eq.photo; 
+                        markAsUnsaved(); // Modifié
+                        render(); 
+                        closePhotoViewer(); 
+                        showToast("Photo supprimée"); 
+                    }
                 }
             }
         }
@@ -706,8 +846,6 @@
                                  </div>`;
                 }
 
-                /* AJOUTÉ : Bouton suppression sur équipement */
-                /* AJOUTÉ : Bouton + rapide sur équipement */
                 div.innerHTML = `
                     <div class="quick-delete-btn" onclick="deleteThisEquipment('${eq.id}', event)">✕</div>
                     <div class="quick-add-btn" onclick="quickAddChild('${eq.id}', event)">+</div>
@@ -750,7 +888,6 @@
         let activeDragId = null; let dragStartX = 0; let dragStartY = 0; let initialObjX = 0; let initialObjY = 0;
 
         function startDrag(e) {
-            // Empêcher le drag si on clique sur les boutons rapides
             if (e.target.classList.contains('quick-add-btn') || e.target.classList.contains('quick-delete-btn')) return;
 
             activeDragId = e.currentTarget.id;
@@ -782,6 +919,7 @@
 
         function endDrag() { 
             activeDragId = null; 
+            markAsUnsaved(); // Modifié : changement de position = modif
             document.removeEventListener('mousemove', onDrag);
             document.removeEventListener('touchmove', onDrag);
             document.removeEventListener('mouseup', endDrag);
@@ -793,40 +931,32 @@
             selectedEquipmentId = null; updateFloatingButtons();
         }
         
-        // AJOUTÉ : Nouvelle fonction de suppression directe
         function deleteThisEquipment(id, event) {
-            event.stopPropagation(); // Empêche la désélection
+            event.stopPropagation(); 
             
             if (confirm("Supprimer cet équipement ?")) {
-                // Gestion spéciale pour les couples radio
                 const target = equipments.find(e => e.id === id);
                 if (target && target.linkedTo) {
                     const partner = equipments.find(e => e.id === target.linkedTo);
                     if (partner) delete partner.linkedTo;
                 }
 
-                // Suppression de l'équipement
                 equipments = equipments.filter(eq => eq.id !== id);
                 
-                // Gestion des orphelins
                 equipments.forEach(e => { 
                     if (e.parent === id) e.parent = null; 
                 });
                 
                 selectedEquipmentId = null;
+                markAsUnsaved(); // Modifié
                 updateFloatingButtons();
                 render();
                 showToast("✅ Équipement supprimé");
             }
         }
 
-        // SUPPRIMÉ : deleteSelectedEquipment() n'est plus utilisé
-
         function updateFloatingButtons() {
-            // SUPPRIMÉ : Gestion du trashBtn flottant
             const photoBtn = document.getElementById('photo-btn');
-            
-            // Le bouton photo reste flottant
             if (selectedEquipmentId) { 
                 photoBtn.classList.add('show'); 
             } else { 
@@ -918,6 +1048,7 @@
             const ip = document.getElementById('newIP').value || "";
 
             if (editingEquipmentId) {
+                // EDITION
                 const eq = equipments.find(e => e.id === editingEquipmentId);
                 const radioMode = document.getElementById('radioMode').value;
 
@@ -940,6 +1071,7 @@
                     showToast("Équipement modifié !");
                 }
             } else {
+                // AJOUT
                 const radioMode = document.getElementById('radioMode').value;
                 let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom;
                 let scrollY = (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom;
@@ -982,6 +1114,7 @@
                 }
             }
 
+            markAsUnsaved(); // Modifié
             selectedEquipmentId = null;
             updateFloatingButtons();
             render(); 
@@ -1001,7 +1134,10 @@
             showToast("Équipement ajouté !");
         }
 
-        function checkInput() { document.getElementById('btnDownload').classList.toggle('disabled', !document.getElementById('siteName').value); }
+        function checkInput() { 
+            document.getElementById('btnDownload').classList.toggle('disabled', !document.getElementById('siteName').value);
+            markAsUnsaved(); // Modifié: Changement de nom = modif
+        }
 
         function downloadPDF() {
             const name = document.getElementById('siteName').value; deselectAll();
@@ -1014,8 +1150,6 @@
                 document.getElementById('workspace-container').style.transform = `scale(${oldZoom})`;
             });
         }
-
-        window.onload = render;
     </script>
 </body>
 </html>
