@@ -112,6 +112,9 @@
             z-index: 250;
         }
 
+        /* AJOUTÉ POUR CACHER BOUTONS MODAL */
+        .floating-ui.modal-open { display: none !important; }
+
         .trash-zone { left: 20px; flex-direction: column-reverse; gap: 15px; }
         .zoom-zone { right: 20px; gap: 10px; flex-direction: column; }
 
@@ -534,14 +537,6 @@
         
         function deleteSelectedEquipment() {
             if (!selectedEquipmentId) return;
-
-            // MODIFIÉ : Suppression de la protection anti-suppression pour root
-            /*
-            if (selectedEquipmentId === 'root') {
-                alert("Impossible de supprimer le routeur principal");
-                return;
-            }
-            */
             
             if(confirm("Supprimer cet équipement ?")) {
                 equipments = equipments.filter(eq => eq.id !== selectedEquipmentId);
@@ -558,7 +553,6 @@
             const trashBtn = document.getElementById('trash-btn');
             const photoBtn = document.getElementById('photo-btn');
             
-            // MODIFIÉ : Autoriser l'affichage même pour root
             if (selectedEquipmentId) {
                 trashBtn.classList.add('show');
                 photoBtn.classList.add('show');
@@ -569,12 +563,19 @@
         }
 
         function openAddModal() {
+            // AJOUTÉ POUR CACHER BOUTONS MODAL
+            document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
+
             const sel = document.getElementById('newParent');
             sel.innerHTML = '<option value="">-- Racine --</option>';
             equipments.forEach(eq => sel.innerHTML += `<option value="${eq.id}">${eq.deviceName}</option>`);
             document.getElementById('addModal').style.display = 'flex';
         }
-        function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
+        function closeAddModal() { 
+            document.getElementById('addModal').style.display = 'none'; 
+            // AJOUTÉ POUR CACHER BOUTONS MODAL
+            document.querySelectorAll('.floating-ui').forEach(el => el.classList.remove('modal-open'));
+        }
 
         function addEquipment() {
             const newEq = {
