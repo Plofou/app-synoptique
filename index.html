@@ -119,20 +119,20 @@
         body.dark-mode .save-status.saved { background: #1b3320; color: #4caf50; }
         body.dark-mode .save-status.unsaved { background: #3b2a1a; color: #ff9800; }
         
-        /* AJOUTÉ : Indicateur zoom en % */
+        /* MODIFIÉ : Position indicateur zoom en dessous */
         .zoom-indicator {
             position: fixed;
-            bottom: 220px;  /* Au-dessus des boutons de zoom */
+            bottom: 10px; /* Positionné tout en bas */
             right: 20px;
             background: rgba(255, 255, 255, 0.95);
             color: #333;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             z-index: 250;
-            min-width: 60px;
+            min-width: 50px;
             text-align: center;
         }
 
@@ -154,11 +154,10 @@
         
         #workspace-container { 
             position: relative; 
-            /* MODIFIÉ : Workspace agrandi 3000 -> 10000 */
             width: 10000px; 
             height: 10000px; 
             background-image: radial-gradient(#ccc 1px, transparent 1px); 
-            background-size: 20px 20px; 
+            background-size: 30px 30px; 
             touch-action: none; 
             transform-origin: 0 0; 
             transition: transform 0.1s ease-out; 
@@ -331,12 +330,12 @@
     </div>
 
     <div class="floating-ui zoom-zone">
-        <div class="zoom-indicator" id="zoomIndicator">100%</div>
         <button class="fab-btn zoom-btn" onclick="updateZoom(0.1)">+</button>
-        <button class="fab-btn zoom-btn" style="font-size:24px;" onclick="zoomToFitAll()" title="Voir tout">⊡</button>
         <button class="fab-btn zoom-btn" style="font-size:20px;" onclick="resetZoom()">⌂</button>
         <button class="fab-btn zoom-btn" onclick="updateZoom(-0.1)">-</button>
     </div>
+
+    <div class="zoom-indicator" id="zoomIndicator">100%</div>
 
     <div class="position-indicator" id="positionIndicator">X: 0 | Y: 0</div>
 
@@ -498,9 +497,8 @@
                 toggleDarkMode();
             }
             render(); 
-            updateZoomDisplay(); // Initial display
+            updateZoomDisplay(); 
             
-            // AJOUTÉ : Scroller vers le routeur principal (position 0,0) au chargement
             document.getElementById('workspace-wrapper').scrollLeft = 0;
             document.getElementById('workspace-wrapper').scrollTop = 0;
         });
@@ -536,9 +534,8 @@
             } else { alert("Code incorrect"); }
         }
 
-        /* MODIFIÉ : Routeur en (50, 50) */
         let equipments = [
-            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 50, y: 50, parent: null }
+            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 5000, y: 100, parent: null }
         ];
 
         function getIcon(type) {
@@ -799,7 +796,6 @@
             }
         }
 
-        // Fonction pour mettre à jour l'affichage du zoom
         function updateZoomDisplay() {
             const zoomPercent = Math.round(currentZoom * 100);
             document.getElementById('zoomIndicator').textContent = zoomPercent + '%';
@@ -807,20 +803,19 @@
 
         function updateZoom(delta) {
             const newZoom = currentZoom + delta;
-            // Limites de zoom agrandies pour le grand workspace
             if (newZoom >= 0.1 && newZoom <= 3.0) { 
                 currentZoom = newZoom;
                 document.getElementById('workspace-container').style.transform = `scale(${currentZoom})`;
-                updateZoomDisplay(); // AJOUTÉ
+                updateZoomDisplay(); 
             }
         }
 
         function resetZoom() {
             currentZoom = 1;
             document.getElementById('workspace-container').style.transform = `scale(1)`;
-            document.getElementById('workspace-wrapper').scrollLeft = 0;
+            document.getElementById('workspace-wrapper').scrollLeft = 5000 - (window.innerWidth / 2);
             document.getElementById('workspace-wrapper').scrollTop = 0;
-            updateZoomDisplay(); // AJOUTÉ
+            updateZoomDisplay(); 
         }
 
         function zoomToFitAll() {
@@ -840,7 +835,7 @@
             const wrapperWidth = wrapper.clientWidth;
             const wrapperHeight = wrapper.clientHeight;
             
-            const contentWidth = maxX - minX + 400; // Marges
+            const contentWidth = maxX - minX + 400; 
             const contentHeight = maxY - minY + 400;
             
             const zoomX = wrapperWidth / contentWidth;
@@ -851,7 +846,7 @@
             
             wrapper.scrollLeft = (minX - 200) * currentZoom;
             wrapper.scrollTop = (minY - 200) * currentZoom;
-            updateZoomDisplay(); // AJOUTÉ
+            updateZoomDisplay(); 
         }
 
         function updateConnectionsOnly() {
@@ -1146,8 +1141,8 @@
             } else {
                 // AJOUT
                 const radioMode = document.getElementById('radioMode').value;
-                let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 200) / currentZoom;
-                let scrollY = (document.getElementById('workspace-wrapper').scrollTop + 300) / currentZoom;
+                let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom;
+                let scrollY = (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom;
                 
                 if (suggestedX !== null && suggestedY !== null) {
                     scrollX = suggestedX;
@@ -1223,6 +1218,8 @@
                 document.getElementById('workspace-container').style.transform = `scale(${oldZoom})`;
             });
         }
+
+        window.onload = render;
     </script>
 </body>
 </html>
