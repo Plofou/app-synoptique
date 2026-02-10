@@ -82,6 +82,9 @@
             padding: 10px; width: 160px; display: flex; flex-direction: column; align-items: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 2; user-select: none; 
             touch-action: none; 
+            /* MODIFIÉ : Photo AU-DESSUS de l'icône - Hauteur automatique pour s'agrandir */
+            height: auto; 
+            min-height: 120px;
         }
         .node.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.2); z-index: 10; }
         .node .icon { margin-bottom: 5px; height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; }
@@ -90,16 +93,33 @@
         .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
         .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
 
-        /* Badge Photo sur l'équipement */
+        /* MODIFIÉ : Photo AU-DESSUS de l'icône - Nouveaux styles pour la section photo */
+        .photo-section {
+            position: relative;
+            width: 100%;
+            height: 100px;
+            margin-bottom: 8px;
+            border-radius: 8px 8px 4px 4px;
+            overflow: hidden;
+            background-color: #eee;
+            cursor: pointer;
+        }
+
+        .field-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
         .photo-badge {
             position: absolute;
-            top: 5px; right: 5px;
-            background: rgba(0,0,0,0.6);
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.6);
             color: white;
-            border-radius: 50%;
-            width: 20px; height: 20px;
-            font-size: 12px;
-            display: flex; justify-content: center; align-items: center;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 14px;
             pointer-events: none;
         }
 
@@ -320,19 +340,14 @@
         for (let i = 1; i <= 19; i++) {
             const peName = `PE${i}`;
             const prName = `PR${i}`;
-            
             let peIpSuffix = (i <= 9) ? (10 + i) : (20 + i); 
             let prIpSuffix = (i <= 9) ? (20 + i) : (30 + i);
-
             let peIp = `172.16.0.${peIpSuffix}`;
             let prIp = `172.16.0.${prIpSuffix}`;
-
             radioData.pe.names.push(peName);
             radioData.pe.ips.push(peIp);
-            
             radioData.pr.names.push(prName);
             radioData.pr.ips.push(prIp);
-            
             radioData.couples.push({
                 label: `${peName} + ${prName}`,
                 peName: peName,
@@ -415,7 +430,6 @@
         function updateFormFields(type, currentName = '', currentIP = '') {
             const radioModeGroup = document.getElementById('radioModeGroup');
             
-            // MODIFIÉ : Double localisation PE/PR - Reset interface standard
             document.getElementById('locationLabel').innerText = "Localisation";
             document.getElementById('locationPRGroup').style.display = 'none';
 
@@ -444,7 +458,6 @@
             const ipContainer = document.getElementById('ipFieldContainer');
 
             if (mode === 'couple') {
-                // MODIFIÉ : Double localisation PE/PR - Interface spécifique
                 document.getElementById('locationLabel').innerText = "Localisation PE";
                 document.getElementById('locationPRGroup').style.display = 'block';
                 document.getElementById('newLocation').placeholder = "Ex: Baie de brassage";
@@ -460,13 +473,11 @@
                 ipContainer.innerHTML = `<input type="text" id="newIP" value="Automatique (2 IPs)" disabled style="background:#eee; color:#666;">`;
             } 
             else if (mode === 'pe') {
-                // MODIFIÉ : Double localisation PE/PR - Reset standard
                 document.getElementById('locationLabel').innerText = "Localisation";
                 document.getElementById('locationPRGroup').style.display = 'none';
                 renderRadioSelects(radioData.pe, currentName, currentIP);
             } 
             else if (mode === 'pr') {
-                // MODIFIÉ : Double localisation PE/PR - Reset standard
                 document.getElementById('locationLabel').innerText = "Localisation";
                 document.getElementById('locationPRGroup').style.display = 'none';
                 renderRadioSelects(radioData.pr, currentName, currentIP);
@@ -661,19 +672,34 @@
                 div.style.left = eq.x + 'px'; div.style.top = eq.y + 'px';
                 if(eq.id === selectedEquipmentId) div.classList.add('selected');
 
-                let iconContent = getIcon(eq.type);
-                let badgeHtml = '';
+                /* MODIFIÉ : Photo AU-DESSUS de l'icône */
+                let photoHtml = '';
                 if (eq.photo) {
-                    iconContent = `<img src="${eq.photo}" class="node-image" style="border-radius:4px;">`;
-                    badgeHtml = `<div class="photo-badge">📷</div>`;
+                    div.classList.add('node-with-photo');
+                    photoHtml = `<div class="photo-section">
+                                    <img src="${eq.photo}" class="field-photo">
+                                    <div class="photo-badge">📷</div>
+                                 </div>`;
                 }
 
-                div.innerHTML = `${badgeHtml}
-                                 <div class="icon">${iconContent}</div>
+                div.innerHTML = `${photoHtml}
+                                 <div class="icon">${getIcon(eq.type)}</div>
                                  <div class="device-name">${eq.deviceName}</div>
                                  <div class="ip-addr">${eq.ip}</div>
                                  <div class="loc">${eq.loc}</div>`;
                 
+                // Add dblclick on photo specifically to view it
+                if (eq.photo) {
+                    const photoSec = div.querySelector('.photo-section');
+                    if (photoSec) {
+                        photoSec.addEventListener('dblclick', (e) => {
+                            e.stopPropagation();
+                            selectedEquipmentId = eq.id; 
+                            openPhotoViewer(eq.photo);
+                        });
+                    }
+                }
+
                 div.addEventListener('mousedown', startDrag);
                 div.addEventListener('touchstart', startDrag, {passive: false});
                 
@@ -682,8 +708,12 @@
                     selectedEquipmentId = eq.id; updateFloatingButtons();
                 });
 
+                // Standard dblclick to edit node
                 div.addEventListener('dblclick', (e) => {
-                    e.stopPropagation(); openEditModal(eq.id);
+                    // Prevent editing if clicking on photo (already handled above but safe check)
+                    if (e.target.closest('.photo-section')) return;
+                    e.stopPropagation(); 
+                    openEditModal(eq.id);
                 });
 
                 document.getElementById('workspace-container').appendChild(div);
@@ -796,14 +826,10 @@
                 
                 // MODIFIÉ : Double localisation PE/PR - Gestion Mode Édition
                 if (eq.linkedTo) {
-                    // C'est un couple
                     document.getElementById('radioMode').value = 'couple';
-                    updateRadioFields(eq.deviceName, eq.ip); // Récupère champs mode couple
+                    updateRadioFields(eq.deviceName, eq.ip); 
                     
                     const partner = equipments.find(e => e.id === eq.linkedTo);
-                    
-                    // Déterminer qui est PE et qui est PR pour le remplissage
-                    // On assume que le nom commence par PE ou PR, sinon fallback ID
                     let isPE = eq.deviceName.startsWith('PE') || (eq.id < partner.id);
                     
                     if (isPE) {
@@ -814,7 +840,6 @@
                         document.getElementById('newLocationPR').value = eq.loc;
                     }
                 } else {
-                    // C'est un radio seul
                     document.getElementById('radioMode').value = eq.deviceName.startsWith('PE') ? 'pe' : 'pr';
                     updateRadioFields(eq.deviceName, eq.ip);
                     document.getElementById('newLocation').value = eq.loc;
@@ -863,9 +888,6 @@
                             eq.loc = locPR;
                             if(partner) partner.loc = locPE;
                         }
-                        // Note: Pour simplifier l'édition de couple, on ne met à jour que la loc ici 
-                        // car le nom/ip est complexe à changer pour 2 items en même temps via ce formulaire simple
-                        // Mais on applique quand même le parent
                         eq.parent = parent;
                         if(partner) partner.parent = parent;
 
@@ -874,7 +896,7 @@
                         eq.type = type;
                         eq.deviceName = deviceName;
                         eq.ip = ip;
-                        eq.loc = locPE; // Utilise le champ standard (qui est #newLocation)
+                        eq.loc = locPE; 
                         eq.parent = parent;
                     }
                     showToast("Équipement modifié !");
