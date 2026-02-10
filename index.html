@@ -267,6 +267,7 @@
         let editingEquipmentId = null; 
 
         // AJOUTÉ AUTO-REMPLISSAGE : Données de presets
+        /* MODIFIÉ : Ajout AMPLI + Correction NVR */
         const presetsByType = {
             bullet: {
                 names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10'],
@@ -282,7 +283,11 @@
             },
             nvr: {
                 names: ['NVR1', 'NVR2', 'NVR3'],
-                ips: ['172.16.0.50', '172.16.0.51', '172.16.0.52']
+                ips: ['172.16.0.1', '172.16.0.2', '172.16.0.3']
+            },
+            ampli: {
+                names: ['AMPLI1', 'AMPLI2', 'AMPLI3', 'AMPLI4', 'AMPLI5'],
+                ips: ['172.16.0.51', '172.16.0.52', '172.16.0.53', '172.16.0.54', '172.16.0.55']
             },
             routeur: {
                 names: ['ROUTEUR1', 'ROUTEUR2'],
@@ -682,7 +687,7 @@
             document.getElementById('newType').value = 'switch';
             
             // MODIFIÉ AUTO-REMPLISSAGE : Init avec inputs vides
-            updateFormFields('switch'); // Load default selects for switch
+            updateFormFields('switch'); 
             
             document.getElementById('newLocation').value = '';
             document.getElementById('newParent').value = '';
@@ -730,7 +735,7 @@
         function addEquipment() {
             const type = document.getElementById('newType').value;
             const deviceName = document.getElementById('newDeviceName').value || "Appareil";
-            const ip = document.getElementById('newIP').value || ""; // Allow empty IP
+            const ip = document.getElementById('newIP').value || ""; 
             const loc = document.getElementById('newLocation').value || "Lieu";
             const parent = document.getElementById('newParent').value || null;
 
