@@ -180,7 +180,6 @@
     </div>
 
     <input type="file" id="fileLoader" style="display:none" accept=".json" onchange="loadProject(this)">
-    
     <input type="file" id="photoInput" style="display:none" accept="image/*" onchange="processPhoto(this)">
 
     <div class="header">
@@ -229,6 +228,15 @@
                     <option value="pupitre">Pupitre Micro</option>
                 </select>
             </div>
+
+            <div class="form-group" id="radioModeGroup" style="display:none;">
+                <label>Mode</label>
+                <select id="radioMode">
+                    <option value="couple">Couple PE/PR (automatique)</option>
+                    <option value="pe">Point Émetteur (PE) seul</option>
+                    <option value="pr">Point Récepteur (PR) seul</option>
+                </select>
+            </div>
             
             <div class="form-group">
                 <label>Nom / Réf</label>
@@ -266,8 +274,7 @@
         let currentZoom = 1;
         let editingEquipmentId = null; 
 
-        // AJOUTÉ AUTO-REMPLISSAGE : Données de presets
-        /* MODIFIÉ : Ajout AMPLI + Correction NVR */
+        // Données de presets
         const presetsByType = {
             bullet: {
                 names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10'],
@@ -294,6 +301,40 @@
                 ips: ['172.16.0.254', '172.16.0.253']
             }
         };
+
+        /* AJOUTÉ SYSTÈME PONTS RADIO : Données spécifiques */
+        const radioData = {
+            pe: { names: [], ips: [] },
+            pr: { names: [], ips: [] },
+            couples: []
+        };
+
+        // Génération des données PE/PR (1 à 19)
+        for (let i = 1; i <= 19; i++) {
+            const peName = `PE${i}`;
+            const prName = `PR${i}`;
+            
+            // Logique IP selon la demande : 1-9 -> +10/20, 10-19 -> +20/30
+            let peIpSuffix = (i <= 9) ? (10 + i) : (20 + i); 
+            let prIpSuffix = (i <= 9) ? (20 + i) : (30 + i);
+
+            let peIp = `172.16.0.${peIpSuffix}`;
+            let prIp = `172.16.0.${prIpSuffix}`;
+
+            radioData.pe.names.push(peName);
+            radioData.pe.ips.push(peIp);
+            
+            radioData.pr.names.push(prName);
+            radioData.pr.ips.push(prIp);
+            
+            radioData.couples.push({
+                label: `${peName} + ${prName}`,
+                peName: peName,
+                prName: prName,
+                peIp: peIp,
+                prIp: prIp
+            });
+        }
 
         function checkPass() {
             if(document.getElementById('pass-field').value === "1234") {
@@ -322,7 +363,6 @@
             return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
         }
 
-        // --- SAUVEGARDE ET CHARGEMENT ---
         function saveProject() {
             const name = document.getElementById('siteName').value || "Synoptique_SansNom";
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(equipments));
@@ -335,14 +375,11 @@
             showToast("Sauvegarde effectuée ! 💾");
         }
 
-        function triggerLoad() {
-            document.getElementById('fileLoader').click();
-        }
+        function triggerLoad() { document.getElementById('fileLoader').click(); }
 
         function loadProject(input) {
             const file = input.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -353,14 +390,9 @@
                         let fileName = file.name.replace('.json', '');
                         if(fileName.includes('Synoptique_')) fileName = fileName.replace('Synoptique_', '');
                         if(fileName !== 'SansNom') document.getElementById('siteName').value = fileName;
-                        
                         showToast("Projet chargé avec succès ! 📂");
-                    } else {
-                        alert("Format de fichier invalide.");
-                    }
-                } catch(err) {
-                    alert("Erreur lors de la lecture du fichier.");
-                }
+                    } else { alert("Format de fichier invalide."); }
+                } catch(err) { alert("Erreur lors de la lecture du fichier."); }
             };
             reader.readAsText(file);
             input.value = ''; 
@@ -373,24 +405,101 @@
             setTimeout(() => t.style.opacity = 0, 3000);
         }
 
-        // --- AJOUTÉ AUTO-REMPLISSAGE : FONCTIONS LOGIQUES ---
+        // --- GESTION FORMULAIRE INTELLIGENT ---
+        /* AJOUTÉ SYSTÈME PONTS RADIO : updateFormFields Modifié */
         function updateFormFields(type, currentName = '', currentIP = '') {
+            // Gestion affichage mode Radio
+            const radioModeGroup = document.getElementById('radioModeGroup');
+            if (type === 'radio') {
+                radioModeGroup.style.display = 'block';
+                // Trigger update based on current mode
+                updateRadioFields(currentName, currentIP);
+                return;
+            } else {
+                radioModeGroup.style.display = 'none';
+            }
+
+            // Logique standard pour les autres types
             const presets = presetsByType[type];
+            if (presets) {
+                const nameIndex = presets.names.indexOf(currentName);
+                const isManual = (currentName && nameIndex === -1);
+                if (isManual) renderInputs(currentName, currentIP);
+                else renderSelects(type, currentName, currentIP);
+            } else {
+                renderInputs(currentName, currentIP);
+            }
+        }
+
+        // Nouvelle fonction dédiée Radio
+        function updateRadioFields(currentName = '', currentIP = '') {
+            const mode = document.getElementById('radioMode').value;
             const nameContainer = document.getElementById('nameFieldContainer');
             const ipContainer = document.getElementById('ipFieldContainer');
 
-            if (presets) {
-                // Vérifier si la valeur actuelle existe dans les presets
-                const nameIndex = presets.names.indexOf(currentName);
-                const isManual = (currentName && nameIndex === -1);
+            if (mode === 'couple') {
+                // Mode Couple : Liste des couples, Pas d'IP (Auto)
+                let html = `<select id="newDeviceName">`;
+                html += `<option value="">-- Choisir Couple --</option>`;
+                radioData.couples.forEach((couple, index) => {
+                    html += `<option value="${index}" data-type="couple">${couple.label}</option>`;
+                });
+                html += `<option value="__manual__">Saisie manuelle</option></select>`;
+                nameContainer.innerHTML = html;
+                
+                // IP désactivé/caché pour couple
+                ipContainer.innerHTML = `<input type="text" id="newIP" value="Automatique (2 IPs)" disabled style="background:#eee; color:#666;">`;
+            } 
+            else if (mode === 'pe') {
+                // Mode PE seul
+                renderRadioSelects(radioData.pe, currentName, currentIP);
+            } 
+            else if (mode === 'pr') {
+                // Mode PR seul
+                renderRadioSelects(radioData.pr, currentName, currentIP);
+            }
+        }
 
-                if (isManual) {
-                    renderInputs(currentName, currentIP);
-                } else {
-                    renderSelects(type, currentName, currentIP);
-                }
+        // Écouteur pour le changement de mode radio
+        document.getElementById('radioMode').addEventListener('change', function() {
+            updateRadioFields();
+        });
+
+        function renderRadioSelects(data, nameVal, ipVal) {
+            // Name Select
+            let nameHtml = `<select id="newDeviceName" onchange="syncRadioIP(this)">`;
+            nameHtml += `<option value="">-- Choisir --</option>`;
+            data.names.forEach((name, index) => {
+                const selected = name === nameVal ? 'selected' : '';
+                nameHtml += `<option value="${name}" data-ip="${data.ips[index]}" ${selected}>${name}</option>`;
+            });
+            nameHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
+            document.getElementById('nameFieldContainer').innerHTML = nameHtml;
+
+            // IP Select
+            let ipHtml = `<select id="newIP">`;
+            ipHtml += `<option value="">-- Auto --</option>`;
+            data.ips.forEach((ip) => {
+                const selected = ip === ipVal ? 'selected' : '';
+                ipHtml += `<option value="${ip}" ${selected}>${ip}</option>`;
+            });
+            ipHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
+            document.getElementById('ipFieldContainer').innerHTML = ipHtml;
+
+            // Listen for manual IP
+            document.getElementById('newIP').addEventListener('change', function() {
+                if (this.value === '__manual__') renderInputs('', '');
+            });
+        }
+
+        function syncRadioIP(select) {
+            const ipSelect = document.getElementById('newIP');
+            if (select.value === '__manual__') {
+                renderInputs('', '');
             } else {
-                renderInputs(currentName, currentIP);
+                const selectedOption = select.options[select.selectedIndex];
+                const ip = selectedOption.getAttribute('data-ip');
+                if (ip) ipSelect.value = ip;
             }
         }
 
@@ -403,30 +512,24 @@
 
         function renderSelects(type, nameVal, ipVal) {
             const presets = presetsByType[type];
-            
-            // Build Name Select
             let nameHtml = `<select id="newDeviceName" onchange="syncIPFromSelect('${type}')">`;
             nameHtml += `<option value="">-- Choisir --</option>`;
             presets.names.forEach((name, index) => {
                 const selected = name === nameVal ? 'selected' : '';
                 nameHtml += `<option value="${name}" data-index="${index}" ${selected}>${name}</option>`;
             });
-            nameHtml += `<option value="__manual__">Saisie manuelle...</option>`;
-            nameHtml += `</select>`;
+            nameHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
             document.getElementById('nameFieldContainer').innerHTML = nameHtml;
 
-            // Build IP Select
             let ipHtml = `<select id="newIP">`;
             ipHtml += `<option value="">-- Auto --</option>`;
             presets.ips.forEach((ip) => {
                 const selected = ip === ipVal ? 'selected' : '';
                 ipHtml += `<option value="${ip}" ${selected}>${ip}</option>`;
             });
-            ipHtml += `<option value="__manual__">Saisie manuelle...</option>`;
-            ipHtml += `</select>`;
+            ipHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
             document.getElementById('ipFieldContainer').innerHTML = ipHtml;
             
-            // Listen for manual selection on IP field too
             document.getElementById('newIP').addEventListener('change', function() {
                 if (this.value === '__manual__') renderInputs('', '');
             });
@@ -435,7 +538,6 @@
         function syncIPFromSelect(type) {
             const nameSelect = document.getElementById('newDeviceName');
             const ipSelect = document.getElementById('newIP');
-            
             if (nameSelect.value === '__manual__') {
                 renderInputs('', '');
             } else {
@@ -448,43 +550,27 @@
         }
 
         // --- GESTION PHOTOS ---
-        function triggerPhotoUpload() {
-            document.getElementById('photoInput').click();
-        }
+        function triggerPhotoUpload() { document.getElementById('photoInput').click(); }
 
         function processPhoto(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const reader = new FileReader();
-                
                 reader.onload = function(e) {
                     const img = new Image();
                     img.src = e.target.result;
-                    
                     img.onload = function() {
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
                         const MAX_WIDTH = 800;
-                        let width = img.width;
-                        let height = img.height;
-                        
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-                        
-                        canvas.width = width;
-                        canvas.height = height;
+                        let width = img.width; let height = img.height;
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                        canvas.width = width; canvas.height = height;
                         ctx.drawImage(img, 0, 0, width, height);
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                        
                         if (selectedEquipmentId) {
                             const eq = equipments.find(e => e.id === selectedEquipmentId);
-                            if (eq) {
-                                eq.photo = dataUrl;
-                                render();
-                                showToast("Photo ajoutée ! 📷");
-                            }
+                            if (eq) { eq.photo = dataUrl; render(); showToast("Photo ajoutée ! 📷"); }
                         }
                     }
                 }
@@ -497,32 +583,22 @@
             document.getElementById('full-photo').src = photoData;
             document.getElementById('photo-modal-overlay').style.display = 'flex';
         }
-
-        function closePhotoViewer() {
-            document.getElementById('photo-modal-overlay').style.display = 'none';
-        }
+        function closePhotoViewer() { document.getElementById('photo-modal-overlay').style.display = 'none'; }
 
         function deleteCurrentPhoto() {
             if (confirm("Supprimer cette photo ?")) {
                 if (selectedEquipmentId) {
                     const eq = equipments.find(e => e.id === selectedEquipmentId);
-                    if (eq && eq.photo) {
-                        delete eq.photo;
-                        render();
-                        closePhotoViewer();
-                        showToast("Photo supprimée");
-                    }
+                    if (eq && eq.photo) { delete eq.photo; render(); closePhotoViewer(); showToast("Photo supprimée"); }
                 }
             }
         }
 
-        // --- GESTION ZOOM ---
         function updateZoom(delta) {
             const newZoom = currentZoom + delta;
             if (newZoom >= 0.2 && newZoom <= 3.0) { 
                 currentZoom = newZoom;
-                const container = document.getElementById('workspace-container');
-                container.style.transform = `scale(${currentZoom})`;
+                document.getElementById('workspace-container').style.transform = `scale(${currentZoom})`;
             }
         }
 
@@ -533,11 +609,13 @@
             document.getElementById('workspace-wrapper').scrollTop = 0;
         }
 
+        /* AJOUTÉ SYSTÈME PONTS RADIO : Dessin ligne pointillée */
         function updateConnectionsOnly() {
             const layer = document.getElementById('connections-layer');
             layer.innerHTML = ''; 
             
             equipments.forEach(eq => {
+                // 1. Ligne Parent (Bleue)
                 if (eq.parent) {
                     const parent = equipments.find(e => e.id === eq.parent);
                     if (parent) {
@@ -550,6 +628,23 @@
                         layer.appendChild(path);
                     }
                 }
+
+                // 2. Ligne Couple Radio (Pointillée Noire)
+                // On vérifie id < linkedTo pour ne dessiner la ligne qu'une seule fois par couple
+                if (eq.linkedTo && eq.id < eq.linkedTo) {
+                    const partner = equipments.find(e => e.id === eq.linkedTo);
+                    if (partner) {
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        // Ligne directe centre à centre (ajusté pour le haut de l'icône)
+                        const d = `M ${eq.x + 80} ${eq.y + 30} L ${partner.x + 80} ${partner.y + 30}`;
+                        path.setAttribute("d", d);
+                        path.setAttribute("stroke", "black");
+                        path.setAttribute("stroke-width", "2");
+                        path.setAttribute("stroke-dasharray", "5,5"); // Pointillé
+                        path.setAttribute("fill", "none");
+                        layer.appendChild(path);
+                    }
+                }
             });
         }
 
@@ -558,16 +653,12 @@
             
             equipments.forEach(eq => {
                 const div = document.createElement('div');
-                div.className = 'node'; 
-                div.id = eq.id;
-                div.style.left = eq.x + 'px'; 
-                div.style.top = eq.y + 'px';
-                
+                div.className = 'node'; div.id = eq.id;
+                div.style.left = eq.x + 'px'; div.style.top = eq.y + 'px';
                 if(eq.id === selectedEquipmentId) div.classList.add('selected');
 
                 let iconContent = getIcon(eq.type);
                 let badgeHtml = '';
-                
                 if (eq.photo) {
                     iconContent = `<img src="${eq.photo}" class="node-image" style="border-radius:4px;">`;
                     badgeHtml = `<div class="photo-badge">📷</div>`;
@@ -583,16 +674,12 @@
                 div.addEventListener('touchstart', startDrag, {passive: false});
                 
                 div.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
-                    deselectAll(); 
-                    div.classList.add('selected');
-                    selectedEquipmentId = eq.id;
-                    updateFloatingButtons();
+                    e.stopPropagation(); deselectAll(); div.classList.add('selected');
+                    selectedEquipmentId = eq.id; updateFloatingButtons();
                 });
 
                 div.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    openEditModal(eq.id);
+                    e.stopPropagation(); openEditModal(eq.id);
                 });
 
                 document.getElementById('workspace-container').appendChild(div);
@@ -600,11 +687,7 @@
             updateConnectionsOnly();
         }
 
-        let activeDragId = null; 
-        let dragStartX = 0; 
-        let dragStartY = 0;
-        let initialObjX = 0;
-        let initialObjY = 0;
+        let activeDragId = null; let dragStartX = 0; let dragStartY = 0; let initialObjX = 0; let initialObjY = 0;
 
         function startDrag(e) {
             activeDragId = e.currentTarget.id;
@@ -615,8 +698,7 @@
             initialObjX = eq.x; initialObjY = eq.y;
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('touchmove', onDrag, {passive: false});
-            document.addEventListener('mouseup', endDrag); 
-            document.addEventListener('touchend', endDrag);
+            document.addEventListener('mouseup', endDrag); document.addEventListener('touchend', endDrag);
         }
 
         function onDrag(e) {
@@ -645,38 +727,34 @@
         
         function deselectAll(e) { 
             document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); 
-            selectedEquipmentId = null;
-            updateFloatingButtons();
+            selectedEquipmentId = null; updateFloatingButtons();
         }
         
         function deleteSelectedEquipment() {
             if (!selectedEquipmentId) return;
-            
             if(confirm("Supprimer cet équipement ?")) {
+                // Si on supprime un élément d'un couple, on retire le lien sur l'autre
+                const target = equipments.find(e => e.id === selectedEquipmentId);
+                if (target && target.linkedTo) {
+                    const partner = equipments.find(e => e.id === target.linkedTo);
+                    if (partner) delete partner.linkedTo;
+                }
+
                 equipments = equipments.filter(eq => eq.id !== selectedEquipmentId);
                 equipments.forEach(e => { if(e.parent === selectedEquipmentId) e.parent = null; });
-                selectedEquipmentId = null;
-                updateFloatingButtons();
-                render();
+                selectedEquipmentId = null; updateFloatingButtons(); render();
             }
         }
 
         function updateFloatingButtons() {
             const trashBtn = document.getElementById('trash-btn');
             const photoBtn = document.getElementById('photo-btn');
-            
-            if (selectedEquipmentId) {
-                trashBtn.classList.add('show');
-                photoBtn.classList.add('show');
-            } else {
-                trashBtn.classList.remove('show');
-                photoBtn.classList.remove('show');
-            }
+            if (selectedEquipmentId) { trashBtn.classList.add('show'); photoBtn.classList.add('show'); } 
+            else { trashBtn.classList.remove('show'); photoBtn.classList.remove('show'); }
         }
 
         function openAddModal() {
             document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
-
             const sel = document.getElementById('newParent');
             sel.innerHTML = '<option value="">-- Racine --</option>';
             equipments.forEach(eq => sel.innerHTML += `<option value="${eq.id}">${eq.deviceName}</option>`);
@@ -685,61 +763,65 @@
             document.getElementById('modalTitle').innerText = "Nouvel Équipement";
             document.getElementById('modalActionBtn').innerText = "Ajouter";
             document.getElementById('newType').value = 'switch';
+            document.getElementById('radioMode').value = 'couple'; // Reset mode default
             
-            // MODIFIÉ AUTO-REMPLISSAGE : Init avec inputs vides
             updateFormFields('switch'); 
             
             document.getElementById('newLocation').value = '';
             document.getElementById('newParent').value = '';
-
             document.getElementById('addModal').style.display = 'flex';
         }
 
         function openEditModal(id) {
             const eq = equipments.find(e => e.id === id);
             if (!eq) return;
-
             document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
-
+            
             const sel = document.getElementById('newParent');
             sel.innerHTML = '<option value="">-- Racine --</option>';
-            equipments.forEach(e => {
-                if (e.id !== id) { 
-                    sel.innerHTML += `<option value="${e.id}">${e.deviceName}</option>`;
-                }
-            });
+            equipments.forEach(e => { if (e.id !== id) sel.innerHTML += `<option value="${e.id}">${e.deviceName}</option>`; });
 
             editingEquipmentId = id;
             document.getElementById('modalTitle').innerText = "Modifier l'Équipement";
             document.getElementById('modalActionBtn').innerText = "Modifier";
             
             document.getElementById('newType').value = eq.type;
-            // MODIFIÉ AUTO-REMPLISSAGE : Update fields with existing values
-            updateFormFields(eq.type, eq.deviceName, eq.ip);
+            
+            // Si c'est un radio, on ne remet pas le mode "Couple" car il est déjà créé
+            // On considère qu'on édite un élément individuel en mode PE ou PR ou Manuel
+            if (eq.type === 'radio') {
+                document.getElementById('radioModeGroup').style.display = 'block';
+                // Simplification pour l'édition : on laisse l'utilisateur gérer
+                // Idéalement on détecterait si c'est un PE ou PR via le nom
+                document.getElementById('radioMode').value = eq.deviceName.startsWith('PE') ? 'pe' : 'pr';
+                updateRadioFields(eq.deviceName, eq.ip);
+            } else {
+                updateFormFields(eq.type, eq.deviceName, eq.ip);
+            }
             
             document.getElementById('newLocation').value = eq.loc;
             document.getElementById('newParent').value = eq.parent || '';
-
             document.getElementById('addModal').style.display = 'flex';
         }
 
         function closeAddModal() { 
             document.getElementById('addModal').style.display = 'none'; 
             document.querySelectorAll('.floating-ui').forEach(el => el.classList.remove('modal-open'));
-            
             editingEquipmentId = null;
-            document.getElementById('modalTitle').innerText = "Nouvel Équipement";
-            document.getElementById('modalActionBtn').innerText = "Ajouter";
         }
 
+        /* AJOUTÉ SYSTÈME PONTS RADIO : Logique d'ajout */
         function addEquipment() {
             const type = document.getElementById('newType').value;
-            const deviceName = document.getElementById('newDeviceName').value || "Appareil";
-            const ip = document.getElementById('newIP').value || ""; 
             const loc = document.getElementById('newLocation').value || "Lieu";
             const parent = document.getElementById('newParent').value || null;
+            
+            // Récupération des valeurs (sauf si mode couple)
+            const deviceName = document.getElementById('newDeviceName').value || "Appareil";
+            const ip = document.getElementById('newIP').value || "";
 
             if (editingEquipmentId) {
+                // EDITION SIMPLE
                 const eq = equipments.find(e => e.id === editingEquipmentId);
                 if (eq) {
                     eq.type = type;
@@ -750,25 +832,62 @@
                     showToast("Équipement modifié !");
                 }
             } else {
-                const newEq = {
-                    id: 'eq-' + Date.now(),
-                    type: type,
-                    deviceName: deviceName,
-                    ip: ip,
-                    loc: loc,
-                    parent: parent,
-                    x: (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom, 
-                    y: (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom
-                };
-                equipments.push(newEq);
-                showToast("Équipement ajouté !");
+                // AJOUT
+                const radioMode = document.getElementById('radioMode').value;
+                const scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 100) / currentZoom;
+                const scrollY = (document.getElementById('workspace-wrapper').scrollTop + 200) / currentZoom;
+
+                if (type === 'radio' && radioMode === 'couple') {
+                    // AJOUT COUPLE AUTOMATIQUE
+                    const select = document.getElementById('newDeviceName');
+                    const index = select.value;
+                    
+                    if (index === "" || index === "__manual__") {
+                        // Fallback manuel si pas de couple choisi (rare)
+                        addSingleNode(type, deviceName, ip, loc, parent, scrollX, scrollY);
+                    } else {
+                        const coupleData = radioData.couples[index];
+                        const idPE = 'eq-' + Date.now();
+                        const idPR = 'eq-' + (Date.now() + 1);
+
+                        // Création PE
+                        equipments.push({
+                            id: idPE, type: 'radio', deviceName: coupleData.peName, ip: coupleData.peIp,
+                            loc: loc, parent: parent, x: scrollX, y: scrollY,
+                            linkedTo: idPR
+                        });
+
+                        // Création PR (décalé de 200px)
+                        equipments.push({
+                            id: idPR, type: 'radio', deviceName: coupleData.prName, ip: coupleData.prIp,
+                            loc: loc, parent: parent, x: scrollX + 200, y: scrollY,
+                            linkedTo: idPE
+                        });
+                        showToast("Couple Radio Ajouté ! 📡");
+                    }
+                } else {
+                    // AJOUT STANDARD
+                    addSingleNode(type, deviceName, ip, loc, parent, scrollX, scrollY);
+                }
             }
 
             selectedEquipmentId = null;
             updateFloatingButtons();
-
             render(); 
             closeAddModal();
+        }
+
+        function addSingleNode(type, name, ip, loc, parent, x, y) {
+            equipments.push({
+                id: 'eq-' + Date.now(),
+                type: type,
+                deviceName: name,
+                ip: ip,
+                loc: loc,
+                parent: parent,
+                x: x, y: y
+            });
+            showToast("Équipement ajouté !");
         }
 
         function checkInput() { document.getElementById('btnDownload').classList.toggle('disabled', !document.getElementById('siteName').value); }
@@ -777,7 +896,6 @@
             const name = document.getElementById('siteName').value; deselectAll();
             const oldZoom = currentZoom;
             document.getElementById('workspace-container').style.transform = `scale(1)`;
-            
             html2canvas(document.getElementById('workspace-container'), { scale: 2 }).then(canvas => {
                 const pdf = new jspdf.jsPDF({ orientation: 'l', unit: 'px', format: [canvas.width, canvas.height] });
                 pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvas.width, canvas.height);
