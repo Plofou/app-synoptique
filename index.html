@@ -90,7 +90,7 @@
         .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
         .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
 
-        /* MODIFICATION : Badge Photo sur l'équipement */
+        /* Badge Photo sur l'équipement */
         .photo-badge {
             position: absolute;
             top: 5px; right: 5px;
@@ -112,7 +112,7 @@
             z-index: 250;
         }
 
-        .trash-zone { left: 20px; flex-direction: column-reverse; gap: 15px; } /* MODIFICATION : pour empiler Photo et Poubelle */
+        .trash-zone { left: 20px; flex-direction: column-reverse; gap: 15px; }
         .zoom-zone { right: 20px; gap: 10px; flex-direction: column; }
 
         .fab-btn {
@@ -131,7 +131,7 @@
         #trash-btn { background: var(--danger); color: white; display: none; }
         #trash-btn.show { display: flex; animation: popIn 0.2s; }
 
-        /* MODIFICATION : Style Bouton Photo */
+        /* Style Bouton Photo */
         #photo-btn { background: var(--primary); color: white; display: none; margin-bottom: 5px;}
         #photo-btn.show { display: flex; animation: popIn 0.2s; }
 
@@ -145,7 +145,7 @@
         .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; padding-bottom: 40px; animation: slideUp 0.3s ease-out; max-height: 85vh; overflow-y: auto; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        /* MODIFICATION : MODALE PLEIN ÉCRAN PHOTO */
+        /* MODAL VISUALISATION PHOTO */
         #photo-modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9);
@@ -327,14 +327,11 @@
             setTimeout(() => t.style.opacity = 0, 3000);
         }
 
-        // --- GESTION PHOTOS (MODIFICATION COMPLETE) ---
-        
-        // 1. Déclenchement input
+        // --- GESTION PHOTOS ---
         function triggerPhotoUpload() {
             document.getElementById('photoInput').click();
         }
 
-        // 2. Traitement et Compression
         function processPhoto(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
@@ -345,11 +342,8 @@
                     img.src = e.target.result;
                     
                     img.onload = function() {
-                        // Compression Canvas
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
-                        
-                        // Calcul Ratio (Max 800px)
                         const MAX_WIDTH = 800;
                         let width = img.width;
                         let height = img.height;
@@ -362,16 +356,13 @@
                         canvas.width = width;
                         canvas.height = height;
                         ctx.drawImage(img, 0, 0, width, height);
-                        
-                        // Conversion Base64 (JPEG 70%)
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                         
-                        // Sauvegarde dans l'équipement sélectionné
                         if (selectedEquipmentId) {
                             const eq = equipments.find(e => e.id === selectedEquipmentId);
                             if (eq) {
-                                eq.photo = dataUrl; // Stockage
-                                render(); // Rafraîchir
+                                eq.photo = dataUrl;
+                                render();
                                 showToast("Photo ajoutée ! 📷");
                             }
                         }
@@ -379,10 +370,9 @@
                 }
                 reader.readAsDataURL(file);
             }
-            input.value = ''; // Reset
+            input.value = ''; 
         }
 
-        // 3. Visualisation Plein Écran
         function openPhotoViewer(photoData) {
             document.getElementById('full-photo').src = photoData;
             document.getElementById('photo-modal-overlay').style.display = 'flex';
@@ -392,21 +382,12 @@
             document.getElementById('photo-modal-overlay').style.display = 'none';
         }
 
-        // 4. Suppression Photo
         function deleteCurrentPhoto() {
             if (confirm("Supprimer cette photo ?")) {
-                // On doit retrouver l'équipement associé à la photo affichée
-                // Ici on utilise selectedEquipmentId car on ne peut ouvrir que celui sélectionné (via double clic)
-                // ou on a cliqué sur celui qu'on voulait voir.
-                
-                // Pour être sûr, si la modale est ouverte via double clic sur un non-sélectionné (rare mais possible via code),
-                // il vaut mieux s'assurer que c'est bien l'équipement en cours de visionnage.
-                // Dans ce contexte, l'utilisateur double-clique, ça sélectionne ET ça ouvre.
-                
                 if (selectedEquipmentId) {
                     const eq = equipments.find(e => e.id === selectedEquipmentId);
                     if (eq && eq.photo) {
-                        delete eq.photo; // Suppression propriété
+                        delete eq.photo;
                         render();
                         closePhotoViewer();
                         showToast("Photo supprimée");
@@ -414,7 +395,6 @@
                 }
             }
         }
-
 
         // --- GESTION ZOOM ---
         function updateZoom(delta) {
@@ -465,14 +445,11 @@
                 
                 if(eq.id === selectedEquipmentId) div.classList.add('selected');
 
-                // MODIFICATION : Logique d'affichage (Icône vs Photo)
                 let iconContent = getIcon(eq.type);
                 let badgeHtml = '';
                 
                 if (eq.photo) {
-                    // Si photo, on remplace l'icône par la photo
                     iconContent = `<img src="${eq.photo}" class="node-image" style="border-radius:4px;">`;
-                    // Et on ajoute le badge
                     badgeHtml = `<div class="photo-badge">📷</div>`;
                 }
 
@@ -490,14 +467,12 @@
                     deselectAll(); 
                     div.classList.add('selected');
                     selectedEquipmentId = eq.id;
-                    updateFloatingButtons(); // Changement ici
+                    updateFloatingButtons();
                 });
 
-                // MODIFICATION : Double Clic pour voir la photo
                 div.addEventListener('dblclick', (e) => {
                     e.stopPropagation();
                     if(eq.photo) {
-                        // On s'assure qu'il est sélectionné pour que le bouton delete marche
                         selectedEquipmentId = eq.id;
                         openPhotoViewer(eq.photo);
                     }
@@ -554,17 +529,23 @@
         function deselectAll(e) { 
             document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); 
             selectedEquipmentId = null;
-            updateFloatingButtons(); // Reset boutons
+            updateFloatingButtons();
         }
         
         function deleteSelectedEquipment() {
             if (!selectedEquipmentId) return;
+
+            // MODIFIÉ : Suppression de la protection anti-suppression pour root
+            /*
             if (selectedEquipmentId === 'root') {
                 alert("Impossible de supprimer le routeur principal");
                 return;
             }
+            */
+            
             if(confirm("Supprimer cet équipement ?")) {
                 equipments = equipments.filter(eq => eq.id !== selectedEquipmentId);
+                // Si des enfants étaient connectés à ce parent, on les détache
                 equipments.forEach(e => { if(e.parent === selectedEquipmentId) e.parent = null; });
                 selectedEquipmentId = null;
                 updateFloatingButtons();
@@ -572,13 +553,13 @@
             }
         }
 
-        // MODIFICATION : Gestion de l'affichage des boutons flottants
+        // Gestion de l'affichage des boutons flottants
         function updateFloatingButtons() {
             const trashBtn = document.getElementById('trash-btn');
             const photoBtn = document.getElementById('photo-btn');
             
-            // Si un équipement est sélectionné ET ce n'est pas le root
-            if (selectedEquipmentId && selectedEquipmentId !== 'root') {
+            // MODIFIÉ : Autoriser l'affichage même pour root
+            if (selectedEquipmentId) {
                 trashBtn.classList.add('show');
                 photoBtn.classList.add('show');
             } else {
