@@ -215,7 +215,7 @@
             <h3 id="modalTitle">Nouvel Équipement</h3>
             <div class="form-group">
                 <label>Type d'appareil</label>
-                <select id="newType">
+                <select id="newType" onchange="updateFormFields(this.value)">
                     <option value="routeur">Routeur Mikrotik</option>
                     <option value="switch">Switch Hikvision</option>
                     <option value="nvr">NVR Hikvision</option>
@@ -229,8 +229,21 @@
                     <option value="pupitre">Pupitre Micro</option>
                 </select>
             </div>
-            <div class="form-group"><label>Nom / Réf</label><input type="text" id="newDeviceName" placeholder="Ex: Switch-RDC"></div>
-            <div class="form-group"><label>Adresse IP</label><input type="text" id="newIP" placeholder="Ex: 192.168.1.10"></div>
+            
+            <div class="form-group">
+                <label>Nom / Réf</label>
+                <div id="nameFieldContainer">
+                    <input type="text" id="newDeviceName" placeholder="Ex: Switch-RDC">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Adresse IP</label>
+                <div id="ipFieldContainer">
+                    <input type="text" id="newIP" placeholder="Ex: 192.168.1.10">
+                </div>
+            </div>
+
             <div class="form-group"><label>Localisation</label><input type="text" id="newLocation" placeholder="Ex: Baie de brassage"></div>
             <div class="form-group"><label>Connecté à</label><select id="newParent"><option value="">-- Racine --</option></select></div>
             <button id="modalActionBtn" class="btn-full btn-primary" onclick="addEquipment()">Ajouter</button>
@@ -251,9 +264,31 @@
     <script>
         let selectedEquipmentId = null;
         let currentZoom = 1;
-        
-        // AJOUTÉ POUR ÉDITION : Variable pour stocker l'ID en cours d'édition
         let editingEquipmentId = null; 
+
+        // AJOUTÉ AUTO-REMPLISSAGE : Données de presets
+        const presetsByType = {
+            bullet: {
+                names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10'],
+                ips: ['172.16.0.101', '172.16.0.102', '172.16.0.103', '172.16.0.104', '172.16.0.105', '172.16.0.106', '172.16.0.107', '172.16.0.108', '172.16.0.109', '172.16.0.110']
+            },
+            dome: {
+                names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10'],
+                ips: ['172.16.0.101', '172.16.0.102', '172.16.0.103', '172.16.0.104', '172.16.0.105', '172.16.0.106', '172.16.0.107', '172.16.0.108', '172.16.0.109', '172.16.0.110']
+            },
+            switch: {
+                names: ['SWITCH1', 'SWITCH2', 'SWITCH3', 'SWITCH4', 'SWITCH5', 'SWITCH6', 'SWITCH7', 'SWITCH8', 'SWITCH9', 'SWITCH10'],
+                ips: ['172.16.0.201', '172.16.0.202', '172.16.0.203', '172.16.0.204', '172.16.0.205', '172.16.0.206', '172.16.0.207', '172.16.0.208', '172.16.0.209', '172.16.0.210']
+            },
+            nvr: {
+                names: ['NVR1', 'NVR2', 'NVR3'],
+                ips: ['172.16.0.50', '172.16.0.51', '172.16.0.52']
+            },
+            routeur: {
+                names: ['ROUTEUR1', 'ROUTEUR2'],
+                ips: ['172.16.0.254', '172.16.0.253']
+            }
+        };
 
         function checkPass() {
             if(document.getElementById('pass-field').value === "1234") {
@@ -331,6 +366,80 @@
             t.innerText = msg;
             t.style.opacity = 1;
             setTimeout(() => t.style.opacity = 0, 3000);
+        }
+
+        // --- AJOUTÉ AUTO-REMPLISSAGE : FONCTIONS LOGIQUES ---
+        function updateFormFields(type, currentName = '', currentIP = '') {
+            const presets = presetsByType[type];
+            const nameContainer = document.getElementById('nameFieldContainer');
+            const ipContainer = document.getElementById('ipFieldContainer');
+
+            if (presets) {
+                // Vérifier si la valeur actuelle existe dans les presets
+                const nameIndex = presets.names.indexOf(currentName);
+                const isManual = (currentName && nameIndex === -1);
+
+                if (isManual) {
+                    renderInputs(currentName, currentIP);
+                } else {
+                    renderSelects(type, currentName, currentIP);
+                }
+            } else {
+                renderInputs(currentName, currentIP);
+            }
+        }
+
+        function renderInputs(nameVal, ipVal) {
+            document.getElementById('nameFieldContainer').innerHTML = 
+                `<input type="text" id="newDeviceName" placeholder="Ex: Switch-RDC" value="${nameVal}">`;
+            document.getElementById('ipFieldContainer').innerHTML = 
+                `<input type="text" id="newIP" placeholder="Ex: 192.168.1.10" value="${ipVal}">`;
+        }
+
+        function renderSelects(type, nameVal, ipVal) {
+            const presets = presetsByType[type];
+            
+            // Build Name Select
+            let nameHtml = `<select id="newDeviceName" onchange="syncIPFromSelect('${type}')">`;
+            nameHtml += `<option value="">-- Choisir --</option>`;
+            presets.names.forEach((name, index) => {
+                const selected = name === nameVal ? 'selected' : '';
+                nameHtml += `<option value="${name}" data-index="${index}" ${selected}>${name}</option>`;
+            });
+            nameHtml += `<option value="__manual__">Saisie manuelle...</option>`;
+            nameHtml += `</select>`;
+            document.getElementById('nameFieldContainer').innerHTML = nameHtml;
+
+            // Build IP Select
+            let ipHtml = `<select id="newIP">`;
+            ipHtml += `<option value="">-- Auto --</option>`;
+            presets.ips.forEach((ip) => {
+                const selected = ip === ipVal ? 'selected' : '';
+                ipHtml += `<option value="${ip}" ${selected}>${ip}</option>`;
+            });
+            ipHtml += `<option value="__manual__">Saisie manuelle...</option>`;
+            ipHtml += `</select>`;
+            document.getElementById('ipFieldContainer').innerHTML = ipHtml;
+            
+            // Listen for manual selection on IP field too
+            document.getElementById('newIP').addEventListener('change', function() {
+                if (this.value === '__manual__') renderInputs('', '');
+            });
+        }
+
+        function syncIPFromSelect(type) {
+            const nameSelect = document.getElementById('newDeviceName');
+            const ipSelect = document.getElementById('newIP');
+            
+            if (nameSelect.value === '__manual__') {
+                renderInputs('', '');
+            } else {
+                const selectedOption = nameSelect.options[nameSelect.selectedIndex];
+                const index = selectedOption.getAttribute('data-index');
+                if (index !== null && presetsByType[type].ips[index]) {
+                    ipSelect.value = presetsByType[type].ips[index];
+                }
+            }
         }
 
         // --- GESTION PHOTOS ---
@@ -476,11 +585,8 @@
                     updateFloatingButtons();
                 });
 
-                // AJOUTÉ POUR ÉDITION : Double-clic pour ouvrir en mode édition
                 div.addEventListener('dblclick', (e) => {
                     e.stopPropagation();
-                    // On empêche l'ouverture si on est en train de draguer (drapeau dans onDrag si nécessaire)
-                    // Mais ici le dblclick est distinct du drag grâce à la logique HTML native
                     openEditModal(eq.id);
                 });
 
@@ -543,7 +649,6 @@
             
             if(confirm("Supprimer cet équipement ?")) {
                 equipments = equipments.filter(eq => eq.id !== selectedEquipmentId);
-                // Si des enfants étaient connectés à ce parent, on les détache
                 equipments.forEach(e => { if(e.parent === selectedEquipmentId) e.parent = null; });
                 selectedEquipmentId = null;
                 updateFloatingButtons();
@@ -551,7 +656,6 @@
             }
         }
 
-        // Gestion de l'affichage des boutons flottants
         function updateFloatingButtons() {
             const trashBtn = document.getElementById('trash-btn');
             const photoBtn = document.getElementById('photo-btn');
@@ -572,43 +676,42 @@
             sel.innerHTML = '<option value="">-- Racine --</option>';
             equipments.forEach(eq => sel.innerHTML += `<option value="${eq.id}">${eq.deviceName}</option>`);
             
-            // AJOUTÉ POUR ÉDITION : Mode AJOUT par défaut
             editingEquipmentId = null;
             document.getElementById('modalTitle').innerText = "Nouvel Équipement";
             document.getElementById('modalActionBtn').innerText = "Ajouter";
             document.getElementById('newType').value = 'switch';
-            document.getElementById('newDeviceName').value = '';
-            document.getElementById('newIP').value = '';
+            
+            // MODIFIÉ AUTO-REMPLISSAGE : Init avec inputs vides
+            updateFormFields('switch'); // Load default selects for switch
+            
             document.getElementById('newLocation').value = '';
             document.getElementById('newParent').value = '';
 
             document.getElementById('addModal').style.display = 'flex';
         }
 
-        // AJOUTÉ POUR ÉDITION : Fonction pour ouvrir le modal en mode édition
         function openEditModal(id) {
             const eq = equipments.find(e => e.id === id);
             if (!eq) return;
 
             document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
 
-            // Préparer la liste des parents (pour éviter de se sélectionner soi-même comme parent)
             const sel = document.getElementById('newParent');
             sel.innerHTML = '<option value="">-- Racine --</option>';
             equipments.forEach(e => {
-                if (e.id !== id) { // On ne peut pas être son propre parent
+                if (e.id !== id) { 
                     sel.innerHTML += `<option value="${e.id}">${e.deviceName}</option>`;
                 }
             });
 
-            // Remplir les champs avec les données existantes
             editingEquipmentId = id;
             document.getElementById('modalTitle').innerText = "Modifier l'Équipement";
             document.getElementById('modalActionBtn').innerText = "Modifier";
             
             document.getElementById('newType').value = eq.type;
-            document.getElementById('newDeviceName').value = eq.deviceName;
-            document.getElementById('newIP').value = eq.ip;
+            // MODIFIÉ AUTO-REMPLISSAGE : Update fields with existing values
+            updateFormFields(eq.type, eq.deviceName, eq.ip);
+            
             document.getElementById('newLocation').value = eq.loc;
             document.getElementById('newParent').value = eq.parent || '';
 
@@ -619,22 +722,19 @@
             document.getElementById('addModal').style.display = 'none'; 
             document.querySelectorAll('.floating-ui').forEach(el => el.classList.remove('modal-open'));
             
-            // AJOUTÉ POUR ÉDITION : Reset des variables d'édition à la fermeture
             editingEquipmentId = null;
             document.getElementById('modalTitle').innerText = "Nouvel Équipement";
             document.getElementById('modalActionBtn').innerText = "Ajouter";
         }
 
-        // MODIFIÉ POUR ÉDITION : Gestion du mode Ajout ou Édition
         function addEquipment() {
             const type = document.getElementById('newType').value;
             const deviceName = document.getElementById('newDeviceName').value || "Appareil";
-            const ip = document.getElementById('newIP').value || "0.0.0.0";
+            const ip = document.getElementById('newIP').value || ""; // Allow empty IP
             const loc = document.getElementById('newLocation').value || "Lieu";
             const parent = document.getElementById('newParent').value || null;
 
             if (editingEquipmentId) {
-                // MODE ÉDITION : Mise à jour de l'existant
                 const eq = equipments.find(e => e.id === editingEquipmentId);
                 if (eq) {
                     eq.type = type;
@@ -645,7 +745,6 @@
                     showToast("Équipement modifié !");
                 }
             } else {
-                // MODE AJOUT : Création d'un nouveau
                 const newEq = {
                     id: 'eq-' + Date.now(),
                     type: type,
@@ -660,7 +759,6 @@
                 showToast("Équipement ajouté !");
             }
 
-            // AJOUTÉ POUR ÉDITION : Désélectionner après modification
             selectedEquipmentId = null;
             updateFloatingButtons();
 
