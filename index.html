@@ -494,14 +494,14 @@
                 </div>
             </div>
 
-            <div class="form-group" id="locationGroup">
-                <label id="locationLabel">Localisation</label>
-                <input type="text" id="newLocation" placeholder="Ex: Baie de brassage">
-            </div>
-
             <div class="form-group" id="locationPRGroup" style="display:none;">
                 <label>Localisation PR</label>
                 <input type="text" id="newLocationPR" placeholder="Ex: Toit bâtiment B">
+            </div>
+
+            <div class="form-group" id="locationGroup">
+                <label id="locationLabel">Localisation</label>
+                <input type="text" id="newLocation" placeholder="Ex: Baie de brassage">
             </div>
 
             <div class="form-group"><label>Connecté à</label><select id="newParent"><option value="">-- Racine --</option></select></div>
@@ -755,7 +755,7 @@
             if (mode === 'couple') {
                 document.getElementById('locationLabel').innerText = "Localisation PE";
                 document.getElementById('locationPRGroup').style.display = 'block';
-                document.getElementById('newLocation').placeholder = "Ex: Baie de brassage";
+                document.getElementById('newLocationPR').placeholder = "Ex: Toit bâtiment B";
 
                 let html = `<select id="newDeviceName">`;
                 html += `<option value="">-- Choisir Couple --</option>`;
@@ -1353,13 +1353,16 @@
                         const idPE = 'eq-' + Date.now();
                         const idPR = 'eq-' + (Date.now() + 1);
 
-                        equipments.push({
-                            id: idPE, type: 'radio', deviceName: coupleData.peName, ip: coupleData.peIp,
-                            loc: locPE, parent: null, x: scrollX, y: scrollY, linkedTo: idPR
-                        });
+                        // PR à gauche (position de base)
                         equipments.push({
                             id: idPR, type: 'radio', deviceName: coupleData.prName, ip: coupleData.prIp,
-                            loc: locPR, parent: parent, x: scrollX + 200, y: scrollY, linkedTo: idPE
+                            loc: locPR, parent: parent, x: scrollX, y: scrollY, linkedTo: idPE
+                        });
+                        
+                        // PE à droite (+200px)
+                        equipments.push({
+                            id: idPE, type: 'radio', deviceName: coupleData.peName, ip: coupleData.peIp,
+                            loc: locPE, parent: null, x: scrollX + 200, y: scrollY, linkedTo: idPR
                         });
                         showToast("Couple Radio Ajouté ! 📡");
                     }
