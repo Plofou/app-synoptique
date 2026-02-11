@@ -71,7 +71,7 @@
         .status-dot { font-size: 12px; }
 
         /* Header Actions */
-        .header-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+        .header-actions { display: flex; gap: 8px; flex: 1; }
 
         .header-btn-labeled {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -154,16 +154,7 @@
             transition: transform 0.1s ease-out; 
         }
         
-        /* MODIFIÉ : z-index à 0 pour que les lignes soient derrière */
-        #connections-layer { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            pointer-events: none; 
-            z-index: 0; 
-        }
+        #connections-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
 
         /* --- BOITIER EQUIPEMENT --- */
         .node {
@@ -578,126 +569,6 @@
             return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
         }
 
-        /* CORRIGÉ : Export PDF avec images */
-        function downloadPDF() {
-            if (!document.getElementById('siteName').value) {
-                alert("Veuillez saisir un nom de site avant d'exporter");
-                return;
-            }
-            
-            const name = document.getElementById('siteName').value;
-            deselectAll();
-            
-            const oldZoom = currentZoom;
-            const wrapper = document.getElementById('workspace-wrapper');
-            const container = document.getElementById('workspace-container');
-            
-            // Calculer la zone contenant tous les équipements
-            if (equipments.length === 0) {
-                alert("Aucun équipement à exporter");
-                return;
-            }
-            
-            let minX = Infinity, minY = Infinity;
-            let maxX = -Infinity, maxY = -Infinity;
-            
-            equipments.forEach(eq => {
-                minX = Math.min(minX, eq.x);
-                minY = Math.min(minY, eq.y);
-                maxX = Math.max(maxX, eq.x + 200);
-                maxY = Math.max(maxY, eq.y + 200);
-            });
-            
-            // Ajouter des marges
-            const MARGIN = 50;
-            minX = Math.max(0, minX - MARGIN);
-            minY = Math.max(0, minY - MARGIN);
-            maxX = maxX + MARGIN;
-            maxY = maxY + MARGIN;
-            
-            const captureWidth = maxX - minX;
-            const captureHeight = maxY - minY;
-            
-            // Réinitialiser le zoom
-            container.style.transform = 'scale(1)';
-            
-            // Scroller vers la zone à capturer
-            wrapper.scrollLeft = minX;
-            wrapper.scrollTop = minY;
-            
-            showToast("📄 Génération du PDF...");
-            
-            // Attendre que le scroll soit fini
-            setTimeout(() => {
-                // Options de capture optimisées
-                const options = {
-                    x: minX,
-                    y: minY,
-                    width: captureWidth,
-                    height: captureHeight,
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#F2F2F7',
-                    logging: false,
-                    scrollX: 0,
-                    scrollY: 0,
-                    windowWidth: captureWidth,
-                    windowHeight: captureHeight
-                };
-                
-                html2canvas(container, options).then(canvas => {
-                    try {
-                        // Créer le PDF
-                        const imgWidth = canvas.width / 2; // Diviser par scale
-                        const imgHeight = canvas.height / 2;
-                        
-                        // Format A4 landscape ou portrait selon l'orientation
-                        const orientation = imgWidth > imgHeight ? 'landscape' : 'portrait';
-                        const pdf = new jspdf.jsPDF({
-                            orientation: orientation,
-                            unit: 'mm',
-                            format: 'a4'
-                        });
-                        
-                        // Calculer les dimensions pour tenir dans A4
-                        const pageWidth = pdf.internal.pageSize.getWidth();
-                        const pageHeight = pdf.internal.pageSize.getHeight();
-                        
-                        const ratio = Math.min(
-                            pageWidth / (imgWidth * 0.264583), // px to mm
-                            pageHeight / (imgHeight * 0.264583)
-                        );
-                        
-                        const pdfWidth = imgWidth * 0.264583 * ratio;
-                        const pdfHeight = imgHeight * 0.264583 * ratio;
-                        
-                        const x = (pageWidth - pdfWidth) / 2;
-                        const y = (pageHeight - pdfHeight) / 2;
-                        
-                        // Ajouter l'image
-                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                        pdf.addImage(imgData, 'JPEG', x, y, pdfWidth, pdfHeight);
-                        
-                        // Sauvegarder
-                        pdf.save(`Synoptique_${name}.pdf`);
-                        showToast("✅ PDF généré avec succès !");
-                        
-                    } catch (error) {
-                        console.error('Erreur génération PDF:', error);
-                        alert("Erreur lors de la génération du PDF : " + error.message);
-                    } finally {
-                        // Restaurer l'état
-                        container.style.transform = `scale(${oldZoom})`;
-                    }
-                }).catch(error => {
-                    console.error('Erreur html2canvas:', error);
-                    alert("Erreur lors de la capture : " + error.message);
-                    container.style.transform = `scale(${oldZoom})`;
-                });
-            }, 300);
-        }
-
         function saveProject() {
             const name = document.getElementById('siteName').value || "Synoptique_SansNom";
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(equipments));
@@ -962,7 +833,7 @@
             updateZoomDisplay(); 
         }
 
-        /* MODIFIÉ : Lignes droites orthogonales */
+        /* MODIFIÉ : Lignes avec esquive d'obstacles */
         function updateConnectionsOnly() {
             const layer = document.getElementById('connections-layer');
             layer.innerHTML = ''; 
@@ -973,20 +844,69 @@
                     if (parent) {
                         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                         
-                        /* MODIFIÉ : Lignes droites au lieu de courbes */
                         // Points de départ et d'arrivée
                         const startX = parent.x + 80;
                         const startY = parent.y + 120;
                         const endX = eq.x + 80;
                         const endY = eq.y;
                         
-                        // Point intermédiaire pour créer l'angle droit
+                        // Vérifier s'il y a des équipements entre le parent et l'enfant
+                        let offsetX = 0;
+                        
+                        // Zone de la ligne horizontale
+                        const lineTop = Math.min(startY, endY);
+                        const lineBottom = Math.max(startY, endY);
+                        const lineLeft = Math.min(startX, endX);
+                        const lineRight = Math.max(startX, endX);
+                        
+                        // Détecter les collisions avec d'autres équipements
+                        equipments.forEach(other => {
+                            // Ne pas vérifier le parent et l'enfant eux-mêmes
+                            if (other.id === eq.id || other.id === parent.id) return;
+                            
+                            // Zone de l'équipement (avec marge)
+                            const eqLeft = other.x - 20;
+                            const eqRight = other.x + 180 + 20;
+                            const eqTop = other.y - 20;
+                            const eqBottom = other.y + 140 + 20;
+                            
+                            // Vérifier si l'équipement est dans la zone de la ligne
+                            const horizontalOverlap = !(eqRight < lineLeft || eqLeft > lineRight);
+                            const verticalOverlap = !(eqBottom < lineTop || eqTop > lineBottom);
+                            
+                            if (horizontalOverlap && verticalOverlap) {
+                                // Il y a collision ! Calculer le décalage nécessaire
+                                if (startX < endX) {
+                                    // Ligne va vers la droite : passer par la gauche de l'obstacle
+                                    offsetX = Math.min(offsetX, eqLeft - 30);
+                                } else {
+                                    // Ligne va vers la gauche : passer par la droite de l'obstacle
+                                    offsetX = Math.max(offsetX, eqRight + 30);
+                                }
+                            }
+                        });
+                        
+                        // Construire le chemin
+                        let pathData;
                         const midY = (startY + endY) / 2;
                         
-                        // Ligne en 3 segments : vertical → horizontal → vertical
-                        const d = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+                        if (offsetX !== 0) {
+                            // Il y a un obstacle : tracer avec contournement
+                            pathData = `M ${startX} ${startY}
+                                         L ${startX} ${midY}
+                                         L ${offsetX} ${midY}
+                                         L ${offsetX} ${midY}
+                                         L ${endX} ${midY}
+                                         L ${endX} ${endY}`;
+                        } else {
+                            // Pas d'obstacle : ligne simple à angle droit
+                            pathData = `M ${startX} ${startY}
+                                         L ${startX} ${midY}
+                                         L ${endX} ${midY}
+                                         L ${endX} ${endY}`;
+                        }
                         
-                        path.setAttribute("d", d); 
+                        path.setAttribute("d", pathData); 
                         path.setAttribute("stroke", "#007AFF"); 
                         path.setAttribute("stroke-width", "2");
                         path.setAttribute("stroke-linejoin", "round");
@@ -1336,17 +1256,125 @@
             markAsUnsaved(); 
         }
 
-        function downloadPDF() {
-            const name = document.getElementById('siteName').value; deselectAll();
-            const oldZoom = currentZoom;
-            document.getElementById('workspace-container').style.transform = `scale(1)`;
-            html2canvas(document.getElementById('workspace-container'), { scale: 2 }).then(canvas => {
-                const pdf = new jspdf.jsPDF({ orientation: 'l', unit: 'px', format: [canvas.width, canvas.height] });
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvas.width, canvas.height);
+function downloadPDF() {
+    if (!document.getElementById('siteName').value) {
+        alert("Veuillez saisir un nom de site avant d'exporter");
+        return;
+    }
+    
+    const name = document.getElementById('siteName').value;
+    deselectAll();
+    
+    // Sauvegarder l'état actuel
+    const oldZoom = currentZoom;
+    const wrapper = document.getElementById('workspace-wrapper');
+    const container = document.getElementById('workspace-container');
+    
+    // Calculer la zone contenant tous les équipements
+    if (equipments.length === 0) {
+        alert("Aucun équipement à exporter");
+        return;
+    }
+    
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+    
+    equipments.forEach(eq => {
+        minX = Math.min(minX, eq.x);
+        minY = Math.min(minY, eq.y);
+        maxX = Math.max(maxX, eq.x + 200);
+        maxY = Math.max(maxY, eq.y + 200);
+    });
+    
+    // Ajouter des marges
+    const MARGIN = 50;
+    minX = Math.max(0, minX - MARGIN);
+    minY = Math.max(0, minY - MARGIN);
+    maxX = maxX + MARGIN;
+    maxY = maxY + MARGIN;
+    
+    const captureWidth = maxX - minX;
+    const captureHeight = maxY - minY;
+    
+    // Réinitialiser le zoom
+    container.style.transform = 'scale(1)';
+    
+    // Scroller vers la zone à capturer
+    wrapper.scrollLeft = minX;
+    wrapper.scrollTop = minY;
+    
+    showToast("📄 Génération du PDF...");
+    
+    // Attendre que le scroll soit fini
+    setTimeout(() => {
+        // Options de capture optimisées
+        const options = {
+            x: minX,
+            y: minY,
+            width: captureWidth,
+            height: captureHeight,
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#F2F2F7',
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: captureWidth,
+            windowHeight: captureHeight
+        };
+        
+        html2canvas(container, options).then(canvas => {
+            try {
+                // Créer le PDF
+                const imgWidth = canvas.width / 2; // Diviser par scale
+                const imgHeight = canvas.height / 2;
+                
+                // Format A4 landscape ou portrait selon l'orientation
+                const orientation = imgWidth > imgHeight ? 'landscape' : 'portrait';
+                const pdf = new jspdf.jsPDF({
+                    orientation: orientation,
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                // Calculer les dimensions pour tenir dans A4
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                const ratio = Math.min(
+                    pageWidth / (imgWidth * 0.264583), // px to mm
+                    pageHeight / (imgHeight * 0.264583)
+                );
+                
+                const pdfWidth = imgWidth * 0.264583 * ratio;
+                const pdfHeight = imgHeight * 0.264583 * ratio;
+                
+                const x = (pageWidth - pdfWidth) / 2;
+                const y = (pageHeight - pdfHeight) / 2;
+                
+                // Ajouter l'image
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                pdf.addImage(imgData, 'JPEG', x, y, pdfWidth, pdfHeight);
+                
+                // Sauvegarder
                 pdf.save(`Synoptique_${name}.pdf`);
-                document.getElementById('workspace-container').style.transform = `scale(${oldZoom})`;
-            });
-        }
+                showToast("✅ PDF généré avec succès !");
+                
+            } catch (error) {
+                console.error('Erreur génération PDF:', error);
+                alert("Erreur lors de la génération du PDF : " + error.message);
+            } finally {
+                // Restaurer l'état
+                container.style.transform = `scale(${oldZoom})`;
+            }
+        }).catch(error => {
+            console.error('Erreur html2canvas:', error);
+            alert("Erreur lors de la capture : " + error.message);
+            container.style.transform = `scale(${oldZoom})`;
+        });
+    }, 300);
+}
 
         window.onload = render;
     </script>
