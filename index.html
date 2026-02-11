@@ -132,7 +132,7 @@
         body.dark-mode .zoom-indicator { background: rgba(44, 44, 44, 0.95); color: #e0e0e0; }
         body.dark-mode .position-indicator { background: rgba(50, 50, 50, 0.9); color: #e0e0e0; }
 
-        /* MODIFIÉ : HP simplifié - nom uniquement (CSS) */
+        /* HP simplifié - CSS */
         #hpGroup {
             background: #F0F9FF;
             padding: 15px;
@@ -303,6 +303,27 @@
         #full-photo { max-width: 95%; max-height: 80vh; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .photo-controls { margin-top: 20px; display: flex; gap: 20px; }
         .icon-btn { background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 24px; cursor: pointer; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
+
+        /* CORRIGÉ : CSS manquant ajouté */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
+        .form-group input, .form-group select { 
+            width: 100%; padding: 12px; border: 1px solid #ddd; 
+            border-radius: 10px; font-size: 1rem; box-sizing: border-box; background: #FAFAFA; 
+        }
+        
+        .btn-full { 
+            width: 100%; padding: 14px; border-radius: 12px; border: none; 
+            font-size: 1rem; font-weight: bold; margin-top: 10px; cursor: pointer; 
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-cancel { background: #E5E5EA; color: black; margin-top: 5px; }
+        
+        .toast { 
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); 
+            background: #333; color: white; padding: 10px 20px; border-radius: 20px; 
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; 
+        }
 
         .zoom-indicator {
             position: fixed;
@@ -697,7 +718,6 @@
             document.getElementById('locationLabel').innerText = "Localisation";
             document.getElementById('locationPRGroup').style.display = 'none';
 
-            // Reset par défaut
             radioModeGroup.style.display = 'none';
             quantityGroup.style.display = 'none';
             hpGroup.style.display = 'none';
@@ -708,11 +728,10 @@
                 return;
             } 
             else if (type === 'ampli') {
-                hpGroup.style.display = 'block'; // Affiche le groupe HP pour les amplis
-                updateHPFields(); // Initialise les champs
+                hpGroup.style.display = 'block';
+                updateHPFields();
             }
             
-            // NOUVEAU : Afficher quantité uniquement si mode AJOUT (pas édition) et type compatible
             if (!editingEquipmentId && presetsByType[type]) {
                 quantityGroup.style.display = 'block';
             }
@@ -759,14 +778,13 @@
             }
         }
         
-        /* MODIFIÉ : Génère les champs de NOM UNIQUEMENT pour les HP */
+        /* HP simplifié - Génère champs nom uniquement */
         function updateHPFields() {
             const hpCount = parseInt(document.getElementById('hpCount')?.value || 1);
             const container = document.getElementById('hpNamesContainer');
             
             if (!container) return;
             
-            // Générer les champs de nom uniquement
             let html = '';
             for (let i = 1; i <= hpCount; i++) {
                 html += `
@@ -1053,7 +1071,8 @@
                     ${photoHtml}
                     <div class="icon">${getIcon(eq.type)}</div>
                     <div class="device-name">${eq.deviceName}</div>
-                    ${eq.ip ? `<div class="ip-addr">${eq.ip}</div>` : ''} <div class="loc">${eq.loc}</div>`;
+                    ${eq.ip ? `<div class="ip-addr">${eq.ip}</div>` : ''}
+                    <div class="loc">${eq.loc}</div>`;
                 
                 if (eq.photo) {
                     const photoSec = div.querySelector('.photo-section');
@@ -1181,9 +1200,10 @@
             document.getElementById('newLocation').value = '';
             document.getElementById('newLocationPR').value = '';
             document.getElementById('newParent').value = '';
-            
-            /* NOUVEAU : Reset Quantité */
             document.getElementById('newQuantity').value = "1";
+            document.getElementById('hpCount').value = "1";
+            updateHPFields();
+            
             document.getElementById('addModal').style.display = 'flex';
         }
 
@@ -1241,7 +1261,36 @@
             suggestedY = null;
         }
 
-        /* NOUVEAU : Ajout rapide multiple */
+        /* CORRIGÉ : Fonction manquante ajoutée */
+        function getNextNEquipments(type, quantity) {
+            const presets = presetsByType[type];
+            if (!presets) return [];
+            
+            const usedNames = equipments.filter(eq => eq.type === type).map(eq => eq.deviceName);
+            const usedIPs = equipments.map(eq => eq.ip);
+            
+            const result = [];
+            let nameIndex = 0;
+            let ipIndex = 0;
+            
+            while (result.length < quantity && nameIndex < presets.names.length) {
+                const name = presets.names[nameIndex];
+                const ip = presets.ips[ipIndex];
+                
+                if (!usedNames.includes(name) && !usedIPs.includes(ip)) {
+                    result.push({ name, ip });
+                    usedNames.push(name);
+                    usedIPs.push(ip);
+                }
+                
+                nameIndex++;
+                ipIndex++;
+            }
+            
+            return result;
+        }
+
+        /* CORRIGÉ : Logique ajout multiple réécrite */
         function addEquipment() {
             const type = document.getElementById('newType').value;
             const locPE = document.getElementById('newLocation').value || "Lieu PE";
@@ -1252,7 +1301,6 @@
             const ip = document.getElementById('newIP').value || "";
 
             if (editingEquipmentId) {
-                // EDITION SIMPLE (inchangé)
                 const eq = equipments.find(e => e.id === editingEquipmentId);
                 const radioMode = document.getElementById('radioMode').value;
 
@@ -1275,11 +1323,9 @@
                     showToast("Équipement modifié !");
                 }
             } else {
-                // AJOUT
                 const radioMode = document.getElementById('radioMode').value;
                 let quantity = parseInt(document.getElementById('newQuantity').value) || 1;
                 
-                // Sécurité
                 if (quantity > 20) quantity = 20;
 
                 let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 200) / currentZoom;
@@ -1292,7 +1338,6 @@
                     suggestedY = null;
                 }
 
-                // CAS SPÉCIAL PONT RADIO (Pas de multiple)
                 if (type === 'radio' && radioMode === 'couple') {
                     const select = document.getElementById('newDeviceName');
                     const index = select.value;
@@ -1315,70 +1360,57 @@
                         showToast("Couple Radio Ajouté ! 📡");
                     }
                 } 
-                else {
-                    // Créer l'équipement principal
+                else if (type === 'ampli') {
                     const newEquipmentId = addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
                     
-                    /* MODIFIÉ : HP simplifié - nom uniquement */
-                    if (type === 'ampli') {
-                        const hpCount = parseInt(document.getElementById('hpCount')?.value || 1);
+                    const hpCount = parseInt(document.getElementById('hpCount')?.value || 1);
+                    const ampliLocation = locPE || "Même lieu que l'ampli";
+                    
+                    for (let i = 1; i <= hpCount; i++) {
+                        const hpName = document.getElementById(`hpName${i}`)?.value || `HP${i}`;
                         
-                        // Récupérer la localisation de l'ampli
-                        const ampliLocation = locPE || "Même lieu que l'ampli";
-                        
-                        // Créer les HP en dessous de l'ampli
-                        for (let i = 1; i <= hpCount; i++) {
-                            const hpName = document.getElementById(`hpName${i}`)?.value || `HP${i}`;
-                            
-                            equipments.push({
-                                id: 'eq-' + Date.now() + '-hp' + i,
-                                type: 'hp',
-                                deviceName: hpName,
-                                ip: '', // Pas d'IP pour les HP (analogique)
-                                loc: ampliLocation, // Même localisation que l'ampli
-                                parent: newEquipmentId, // Connecté à l'ampli
-                                x: scrollX + ((i - 1) * 220), // Espacés horizontalement
-                                y: scrollY + 200 // En dessous de l'ampli
-                            });
-                        }
-                        
-                        showToast(`✅ Ampli + ${hpCount} HP ajoutés !`);
+                        equipments.push({
+                            id: 'eq-' + Date.now() + '-hp' + i + Math.random().toString(36).substr(2, 5),
+                            type: 'hp',
+                            deviceName: hpName,
+                            ip: '',
+                            loc: ampliLocation,
+                            parent: newEquipmentId,
+                            x: scrollX + ((i - 1) * 220),
+                            y: scrollY + 200
+                        });
                     }
-                    else {
-                        // AJOUT STANDARD (AVEC BOUCLE QUANTITÉ POUR LES AUTRES TYPES)
-                        const nameSelect = document.getElementById('newDeviceName');
-                        let startIndex = 0;
+                    
+                    showToast(`✅ Ampli + ${hpCount} HP ajoutés !`);
+                }
+                else {
+                    const presets = presetsByType[type];
+                    
+                    if (quantity > 1 && presets) {
+                        const equipData = getNextNEquipments(type, quantity);
                         
-                        if (presetsByType[type] && nameSelect.value !== '__manual__') {
-                            const selectedOption = nameSelect.options[nameSelect.selectedIndex];
-                            const idx = parseInt(selectedOption.getAttribute('data-index'));
-                            if (!isNaN(idx)) startIndex = idx;
+                        if (equipData.length === 0) {
+                            alert(`Plus de noms/IPs disponibles pour ce type`);
+                            return;
                         }
-
-                        // Attention: le premier équipement est déjà créé via addSingleNode ci-dessus
-                        // On crée donc les suivants (à partir de 1)
-                        for (let i = 1; i < quantity; i++) {
-                            let finalName = deviceName;
-                            let finalIP = ip;
-
-                            if (presetsByType[type] && nameSelect.value !== '__manual__') {
-                                const currentIndex = startIndex + i;
-                                if (presetsByType[type].names[currentIndex]) {
-                                    finalName = presetsByType[type].names[currentIndex];
-                                    finalIP = presetsByType[type].ips[currentIndex] || '';
-                                }
-                            }
-
-                            const col = i % 3;
-                            const row = Math.floor(i / 3);
-                            const posX = scrollX + (col * 220); 
-                            const posY = scrollY + (row * 160) + (i > 0 ? 0 : 0); // Ajustement si besoin
+                        
+                        const SPACING_X = 220;
+                        const SPACING_Y = 180;
+                        const COLS = 3;
+                        
+                        equipData.forEach((data, index) => {
+                            const row = Math.floor(index / COLS);
+                            const col = index % COLS;
+                            const x = scrollX + (col * SPACING_X);
+                            const y = scrollY + (row * SPACING_Y);
                             
-                            addSingleNode(type, finalName, finalIP, locPE, parent, scrollX + (i%3)*220, scrollY + Math.floor(i/3)*220);
-                        }
+                            addSingleNode(type, data.name, data.ip, locPE, parent, x, y);
+                        });
                         
-                        if(quantity > 1) showToast(`${quantity} équipements ajoutés ! 🚀`);
-                        else showToast("Équipement ajouté !");
+                        showToast(`✅ ${equipData.length} équipements ajoutés !`);
+                    } else {
+                        addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
+                        showToast("Équipement ajouté !");
                     }
                 }
             }
@@ -1390,7 +1422,6 @@
             closeAddModal();
         }
 
-        /* MODIFIÉ : Retourne l'ID pour le parentage des HP */
         function addSingleNode(type, name, ip, loc, parent, x, y) {
             const newId = 'eq-' + Date.now() + Math.random().toString(36).substr(2, 5);
             equipments.push({
@@ -1411,15 +1442,108 @@
         }
 
         function downloadPDF() {
-            const name = document.getElementById('siteName').value; deselectAll();
+            if (!document.getElementById('siteName').value) {
+                alert("Veuillez saisir un nom de site avant d'exporter");
+                return;
+            }
+            
+            const name = document.getElementById('siteName').value;
+            deselectAll();
+            
             const oldZoom = currentZoom;
-            document.getElementById('workspace-container').style.transform = `scale(1)`;
-            html2canvas(document.getElementById('workspace-container'), { scale: 2 }).then(canvas => {
-                const pdf = new jspdf.jsPDF({ orientation: 'l', unit: 'px', format: [canvas.width, canvas.height] });
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvas.width, canvas.height);
-                pdf.save(`Synoptique_${name}.pdf`);
-                document.getElementById('workspace-container').style.transform = `scale(${oldZoom})`;
+            const wrapper = document.getElementById('workspace-wrapper');
+            const container = document.getElementById('workspace-container');
+            
+            if (equipments.length === 0) {
+                alert("Aucun équipement à exporter");
+                return;
+            }
+            
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+            
+            equipments.forEach(eq => {
+                minX = Math.min(minX, eq.x);
+                minY = Math.min(minY, eq.y);
+                maxX = Math.max(maxX, eq.x + 200);
+                maxY = Math.max(maxY, eq.y + 200);
             });
+            
+            const MARGIN = 50;
+            minX = Math.max(0, minX - MARGIN);
+            minY = Math.max(0, minY - MARGIN);
+            maxX = maxX + MARGIN;
+            maxY = maxY + MARGIN;
+            
+            const captureWidth = maxX - minX;
+            const captureHeight = maxY - minY;
+            
+            container.style.transform = 'scale(1)';
+            wrapper.scrollLeft = minX;
+            wrapper.scrollTop = minY;
+            
+            showToast("📄 Génération du PDF...");
+            
+            setTimeout(() => {
+                const options = {
+                    x: minX,
+                    y: minY,
+                    width: captureWidth,
+                    height: captureHeight,
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#F2F2F7',
+                    logging: false,
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: captureWidth,
+                    windowHeight: captureHeight
+                };
+                
+                html2canvas(container, options).then(canvas => {
+                    try {
+                        const imgWidth = canvas.width / 2;
+                        const imgHeight = canvas.height / 2;
+                        
+                        const orientation = imgWidth > imgHeight ? 'landscape' : 'portrait';
+                        const pdf = new jspdf.jsPDF({
+                            orientation: orientation,
+                            unit: 'mm',
+                            format: 'a4'
+                        });
+                        
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        
+                        const ratio = Math.min(
+                            pageWidth / (imgWidth * 0.264583),
+                            pageHeight / (imgHeight * 0.264583)
+                        );
+                        
+                        const pdfWidth = imgWidth * 0.264583 * ratio;
+                        const pdfHeight = imgHeight * 0.264583 * ratio;
+                        
+                        const x = (pageWidth - pdfWidth) / 2;
+                        const y = (pageHeight - pdfHeight) / 2;
+                        
+                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                        pdf.addImage(imgData, 'JPEG', x, y, pdfWidth, pdfHeight);
+                        pdf.save(`Synoptique_${name}.pdf`);
+                        showToast("✅ PDF généré avec succès !");
+                        
+                    } catch (error) {
+                        console.error('Erreur génération PDF:', error);
+                        alert("Erreur lors de la génération du PDF : " + error.message);
+                    } finally {
+                        container.style.transform = `scale(${oldZoom})`;
+                    }
+                }).catch(error => {
+                    console.error('Erreur html2canvas:', error);
+                    alert("Erreur lors de la capture : " + error.message);
+                    container.style.transform = `scale(${oldZoom})`;
+                });
+            }, 300);
         }
 
         window.onload = render;
