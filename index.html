@@ -94,12 +94,6 @@
         .export-btn:hover { background: #fff7ed; }
         .add-btn { border: 2px solid var(--primary); }
         .add-btn:hover { background: #eff6ff; }
-        
-        /* AJOUTÉ : Style bouton suppression de zone */
-        .del-zone-btn { border: 2px solid var(--danger); color: var(--danger); }
-        .del-zone-btn:hover { background: #fff1f2; }
-        .del-zone-btn.active { background: var(--danger); color: white; }
-        .del-zone-btn.active .btn-label { color: white; }
 
         .company-logo {
             height: 50px; 
@@ -131,7 +125,6 @@
         body.dark-mode .save-btn:hover { background: #1b3320; }
         body.dark-mode .open-btn:hover, body.dark-mode .add-btn:hover { background: #1a273b; }
         body.dark-mode .export-btn:hover { background: #3b2a1a; }
-        body.dark-mode .del-zone-btn:hover { background: #3b1a1a; } /* Hover rouge sombre */
         body.dark-mode .save-status { background: #333; color: #aaa; }
         body.dark-mode .save-status.saved { background: #1b3320; color: #4caf50; }
         body.dark-mode .save-status.unsaved { background: #3b2a1a; color: #ff9800; }
@@ -311,9 +304,30 @@
         .photo-controls { margin-top: 20px; display: flex; gap: 20px; }
         .icon-btn { background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 24px; cursor: pointer; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
 
+        /* CORRIGÉ : CSS manquant ajouté */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
+        .form-group input, .form-group select { 
+            width: 100%; padding: 12px; border: 1px solid #ddd; 
+            border-radius: 10px; font-size: 1rem; box-sizing: border-box; background: #FAFAFA; 
+        }
+        
+        .btn-full { 
+            width: 100%; padding: 14px; border-radius: 12px; border: none; 
+            font-size: 1rem; font-weight: bold; margin-top: 10px; cursor: pointer; 
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-cancel { background: #E5E5EA; color: black; margin-top: 5px; }
+        
+        .toast { 
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); 
+            background: #333; color: white; padding: 10px 20px; border-radius: 20px; 
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; 
+        }
+
         .zoom-indicator {
             position: fixed;
-            bottom: 240px; 
+            bottom: 240px;
             right: 20px;
             background: rgba(255, 255, 255, 0.95);
             color: #333;
@@ -327,16 +341,26 @@
             text-align: center;
         }
 
-        /* AJOUTÉ : Zone de suppression (carré volant) */
+        /* Style du bouton spécifique "Zone Suppr." */
+        .del-zone-btn { border: 2px solid var(--danger); color: var(--danger); }
+        .del-zone-btn:hover { background: #fff1f2; }
+        .del-zone-btn.active { background: var(--danger); color: white; }
+        .del-zone-btn.active .btn-label { color: white; }
+
+        /* Ajustement pour le mode sombre */
+        body.dark-mode .del-zone-btn:hover { background: #3b1a1a; }
+
+        /* Le carré de sélection visuel */
         #selectionBox {
             position: absolute;
             background-color: rgba(255, 59, 48, 0.2);
             border: 2px dashed #FF3B30;
             display: none;
-            pointer-events: none; /* Laisse passer les clics pour le 2ème clic */
+            pointer-events: none; /* Important pour laisser passer les clics */
             z-index: 1000;
         }
-        /* Curseur spécial pour le mode sélection */
+
+        /* Curseur en croix quand le mode est actif */
         body.selection-mode #workspace-container {
             cursor: crosshair !important;
         }
@@ -428,16 +452,16 @@
             <div class="form-group">
                 <label>Type d'appareil</label>
                 <select id="newType" onchange="updateFormFields(this.value)">
-                    <option value="routeur">Routeur Mikrotik</option>
-                    <option value="switch">Switch Hikvision</option>
-                    <option value="nvr">NVR Hikvision</option>
-                    <option value="bullet">Caméra Bullet</option>
-                    <option value="dome">Caméra Dôme</option>
-                    <option value="box">Box / Internet</option>
-                    <option value="ecran">Écran (PC)</option>
-                    <option value="radio">Antenne Radio</option>
-                    <option value="ampli">Ampli Audio</option>
-                    <option value="pupitre">Pupitre Micro</option>
+                    <option value="routeur">Routeur Mikrotik 📶</option>
+                    <option value="switch">Switch 🔌</option>
+                    <option value="nvr">NVR 📼</option>
+                    <option value="bullet">Caméra Bullet 📹</option>
+                    <option value="dome">Caméra Dôme 🎥</option>
+                    <option value="box">Box / Internet 🌐</option>
+                    <option value="ecran">Écran (PC) 🖥️</option>
+                    <option value="radio">Ponts Radios 📡</option>
+                    <option value="ampli">Ampli Audio 📢</option>
+                    <option value="pupitre">Pupitre Micro 🎤</option>
                 </select>
             </div>
 
@@ -447,6 +471,18 @@
                     <option value="couple">Couple PE/PR (automatique)</option>
                     <option value="pe">Point Émetteur (PE) seul</option>
                     <option value="pr">Point Récepteur (PR) seul</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="radioCoupleQuantityGroup" style="display:none;">
+                <label>Nombre de couples à créer</label>
+                <select id="radioCoupleQuantity">
+                    <option value="1">1 couple (Standard)</option>
+                    <option value="2">2 couples</option>
+                    <option value="3">3 couples</option>
+                    <option value="4">4 couples</option>
+                    <option value="5">5 couples</option>
+                    <option value="10">10 couples</option>
                 </select>
             </div>
 
@@ -500,14 +536,14 @@
                 </div>
             </div>
 
-            <div class="form-group" id="locationGroup">
-                <label id="locationLabel">Localisation</label>
-                <input type="text" id="newLocation" placeholder="Ex: Baie de brassage">
-            </div>
-
             <div class="form-group" id="locationPRGroup" style="display:none;">
                 <label>Localisation PR</label>
                 <input type="text" id="newLocationPR" placeholder="Ex: Toit bâtiment B">
+            </div>
+
+            <div class="form-group" id="locationGroup">
+                <label id="locationLabel">Localisation</label>
+                <input type="text" id="newLocation" placeholder="Ex: Baie de brassage">
             </div>
 
             <div class="form-group"><label>Connecté à</label><select id="newParent"><option value="">-- Racine --</option></select></div>
@@ -534,8 +570,6 @@
         let suggestedY = null;
         let lastSaved = null;
         let hasUnsavedChanges = false;
-        
-        // AJOUTÉ : Variables pour la zone de suppression
         let isSelectionMode = false;
         let selectionStart = null;
 
@@ -550,7 +584,7 @@
             },
             switch: {
                 names: ['SWITCH1', 'SWITCH2', 'SWITCH3', 'SWITCH4', 'SWITCH5', 'SWITCH6', 'SWITCH7', 'SWITCH8', 'SWITCH9', 'SWITCH10'],
-                ips: ['172.16.0.201', '172.16.0.202', '172.16.0.203', '172.16.0.204', '172.16.0.205', '172.16.0.206', '172.16.0.207', '172.16.0.208', '172.16.0.209', '172.16.0.210']
+                ips: ['172.16.0.200', '172.16.0.201', '172.16.0.202', '172.16.0.203', '172.16.0.204', '172.16.0.205', '172.16.0.206', '172.16.0.207', '172.16.0.208', '172.16.0.209']
             },
             nvr: {
                 names: ['NVR1', 'NVR2', 'NVR3'],
@@ -654,7 +688,7 @@
         }
 
         let equipments = [
-            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 100, y: 100, parent: null }
+            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '172.16.0.1', loc: 'Baie de Brassage', x: 100, y: 100, parent: null }
         ];
 
         function getIcon(type) {
@@ -673,129 +707,6 @@
             };
             return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
         }
-
-        /* AJOUTÉ : Zone de suppression - Fonctions */
-        function toggleSelectionMode() {
-            isSelectionMode = !isSelectionMode;
-            const btn = document.getElementById('delZoneBtn');
-            const body = document.body;
-            
-            if (isSelectionMode) {
-                btn.classList.add('active');
-                body.classList.add('selection-mode');
-                showToast("Mode suppression : Cliquez pour commencer la zone");
-                deselectAll();
-            } else {
-                btn.classList.remove('active');
-                body.classList.remove('selection-mode');
-                resetSelectionBox();
-            }
-        }
-
-        function handleWorkspaceClick(e) {
-            // Ignorer si ce n'est pas le mode sélection ou si on clique sur un équipement
-            if (!isSelectionMode || e.target.closest('.node')) return;
-
-            const wrapper = document.getElementById('workspace-wrapper');
-            const container = document.getElementById('workspace-container');
-            const rect = container.getBoundingClientRect();
-            
-            // Coordonnées relatives au conteneur zoomé
-            const x = (e.clientX - rect.left) / currentZoom;
-            const y = (e.clientY - rect.top) / currentZoom;
-
-            if (!selectionStart) {
-                // Premier clic : démarrer la zone
-                selectionStart = { x, y };
-                const box = document.getElementById('selectionBox');
-                box.style.left = x + 'px';
-                box.style.top = y + 'px';
-                box.style.width = '0px';
-                box.style.height = '0px';
-                box.style.display = 'block';
-                
-                // Ajouter écouteur de mouvement
-                document.addEventListener('mousemove', handleSelectionMove);
-            } else {
-                // Deuxième clic : terminer la zone et proposer la suppression
-                document.removeEventListener('mousemove', handleSelectionMove);
-                processBulkDelete(selectionStart, { x, y });
-                resetSelectionBox();
-                toggleSelectionMode(); // Quitter le mode
-            }
-        }
-
-        function handleSelectionMove(e) {
-            if (!selectionStart) return;
-
-            const container = document.getElementById('workspace-container');
-            const rect = container.getBoundingClientRect();
-            const currentX = (e.clientX - rect.left) / currentZoom;
-            const currentY = (e.clientY - rect.top) / currentZoom;
-
-            const box = document.getElementById('selectionBox');
-            
-            const width = Math.abs(currentX - selectionStart.x);
-            const height = Math.abs(currentY - selectionStart.y);
-            const left = Math.min(currentX, selectionStart.x);
-            const top = Math.min(currentY, selectionStart.y);
-
-            box.style.width = width + 'px';
-            box.style.height = height + 'px';
-            box.style.left = left + 'px';
-            box.style.top = top + 'px';
-        }
-
-        function resetSelectionBox() {
-            selectionStart = null;
-            const box = document.getElementById('selectionBox');
-            box.style.display = 'none';
-            document.removeEventListener('mousemove', handleSelectionMove);
-        }
-
-        function processBulkDelete(start, end) {
-            const minX = Math.min(start.x, end.x);
-            const maxX = Math.max(start.x, end.x);
-            const minY = Math.min(start.y, end.y);
-            const maxY = Math.max(start.y, end.y);
-
-            // Trouver les équipements dans la zone
-            // On considère qu'un équipement est "dans" la zone si son centre y est
-            const toDelete = equipments.filter(eq => {
-                const centerX = eq.x + 80; // Largeur approx 160/2
-                const centerY = eq.y + 60; // Hauteur approx 120/2
-                return centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY;
-            });
-
-            if (toDelete.length === 0) {
-                showToast("Aucun équipement sélectionné");
-                return;
-            }
-
-            if (confirm(`Voulez-vous supprimer ces ${toDelete.length} équipements sélectionnés ?`)) {
-                const idsToDelete = toDelete.map(eq => eq.id);
-                
-                // Filtrer la liste principale
-                equipments = equipments.filter(eq => !idsToDelete.includes(eq.id));
-
-                // Nettoyer les liens orphelins
-                equipments.forEach(eq => {
-                    if (idsToDelete.includes(eq.parent)) eq.parent = null;
-                    if (idsToDelete.includes(eq.linkedTo)) delete eq.linkedTo;
-                });
-
-                markAsUnsaved();
-                render();
-                showToast(`🗑️ ${toDelete.length} équipements supprimés`);
-            }
-        }
-        
-        /* Annuler sélection avec Echap */
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && isSelectionMode) {
-                toggleSelectionMode();
-            }
-        });
 
         function saveProject() {
             const name = document.getElementById('siteName').value || "Synoptique_SansNom";
@@ -847,14 +758,14 @@
             const radioModeGroup = document.getElementById('radioModeGroup');
             const quantityGroup = document.getElementById('quantityGroup');
             const hpGroup = document.getElementById('hpGroup');
-            
+
             document.getElementById('locationLabel').innerText = "Localisation";
             document.getElementById('locationPRGroup').style.display = 'none';
 
-            // Reset par défaut
             radioModeGroup.style.display = 'none';
             quantityGroup.style.display = 'none';
             hpGroup.style.display = 'none';
+            document.getElementById('radioCoupleQuantityGroup').style.display = 'none';
 
             if (type === 'radio') {
                 radioModeGroup.style.display = 'block';
@@ -862,11 +773,10 @@
                 return;
             } 
             else if (type === 'ampli') {
-                hpGroup.style.display = 'block'; // Affiche le groupe HP pour les amplis
-                updateHPFields(); // Initialise les champs
+                hpGroup.style.display = 'block';
+                updateHPFields();
             }
             
-            // NOUVEAU : Afficher quantité uniquement si mode AJOUT (pas édition) et type compatible
             if (!editingEquipmentId && presetsByType[type]) {
                 quantityGroup.style.display = 'block';
             }
@@ -890,7 +800,10 @@
             if (mode === 'couple') {
                 document.getElementById('locationLabel').innerText = "Localisation PE";
                 document.getElementById('locationPRGroup').style.display = 'block';
-                document.getElementById('newLocation').placeholder = "Ex: Baie de brassage";
+                document.getElementById('newLocationPR').placeholder = "Ex: Toit bâtiment B";
+
+                // NOUVEAU : Afficher le champ quantité
+                document.getElementById('radioCoupleQuantityGroup').style.display = 'block';
 
                 let html = `<select id="newDeviceName">`;
                 html += `<option value="">-- Choisir Couple --</option>`;
@@ -904,23 +817,24 @@
             else if (mode === 'pe') {
                 document.getElementById('locationLabel').innerText = "Localisation";
                 document.getElementById('locationPRGroup').style.display = 'none';
+                document.getElementById('radioCoupleQuantityGroup').style.display = 'none'; // AJOUTÉ
                 renderRadioSelects(radioData.pe, currentName, currentIP);
-            } 
+            }
             else if (mode === 'pr') {
                 document.getElementById('locationLabel').innerText = "Localisation";
                 document.getElementById('locationPRGroup').style.display = 'none';
+                document.getElementById('radioCoupleQuantityGroup').style.display = 'none'; // AJOUTÉ
                 renderRadioSelects(radioData.pr, currentName, currentIP);
             }
         }
         
-        /* MODIFIÉ : Génère les champs de NOM UNIQUEMENT pour les HP */
+        /* HP simplifié - Génère champs nom uniquement */
         function updateHPFields() {
             const hpCount = parseInt(document.getElementById('hpCount')?.value || 1);
             const container = document.getElementById('hpNamesContainer');
             
             if (!container) return;
             
-            // Générer les champs de nom uniquement
             let html = '';
             for (let i = 1; i <= hpCount; i++) {
                 html += `
@@ -1099,50 +1013,53 @@
             updateZoomDisplay(); 
         }
 
+        /* SOLUTION SIMPLE ET EFFICACE : Chaque enfant a son propre couloir */
         function updateConnectionsOnly() {
             const layer = document.getElementById('connections-layer');
             layer.innerHTML = ''; 
+            
+            // Grouper les enfants par parent pour leur donner un index unique
+            const childrenByParent = {};
+            equipments.forEach(eq => {
+                if (eq.parent) {
+                    if (!childrenByParent[eq.parent]) {
+                        childrenByParent[eq.parent] = [];
+                    }
+                    childrenByParent[eq.parent].push(eq);
+                }
+            });
             
             equipments.forEach(eq => {
                 if (eq.parent) {
                     const parent = equipments.find(e => e.id === eq.parent);
                     if (parent) {
                         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        
+                        // Points de départ et arrivée
                         const startX = parent.x + 80;
                         const startY = parent.y + 120;
                         const endX = eq.x + 80;
                         const endY = eq.y;
-                        let offsetX = 0;
                         
-                        const lineTop = Math.min(startY, endY);
-                        const lineBottom = Math.max(startY, endY);
-                        const lineLeft = Math.min(startX, endX);
-                        const lineRight = Math.max(startX, endX);
+                        // Trouver l'index de cet enfant parmi les enfants de ce parent
+                        const siblings = childrenByParent[eq.parent];
+                        const childIndex = siblings.findIndex(child => child.id === eq.id);
+                        const totalSiblings = siblings.length;
                         
-                        equipments.forEach(other => {
-                            if (other.id === eq.id || other.id === parent.id) return;
-                            const eqLeft = other.x - 20;
-                            const eqRight = other.x + 180 + 20;
-                            const eqTop = other.y - 20;
-                            const eqBottom = other.y + 140 + 20;
-                            
-                            const horizontalOverlap = !(eqRight < lineLeft || eqLeft > lineRight);
-                            const verticalOverlap = !(eqBottom < lineTop || eqTop > lineBottom);
-                            
-                            if (horizontalOverlap && verticalOverlap) {
-                                if (startX < endX) { offsetX = Math.min(offsetX, eqLeft - 30); } 
-                                else { offsetX = Math.max(offsetX, eqRight + 30); }
-                            }
-                        });
+                        // Décalage horizontal unique pour chaque enfant (en "escalier")
+                        const HORIZONTAL_SPACING = 40; // Espacement entre chaque ligne
+                        const horizontalOffset = (childIndex - Math.floor(totalSiblings / 2)) * HORIZONTAL_SPACING;
                         
-                        let pathData;
+                        // Point intermédiaire décalé horizontalement
+                        const midX = startX + horizontalOffset;
                         const midY = (startY + endY) / 2;
                         
-                        if (offsetX !== 0) {
-                            pathData = `M ${startX} ${startY} L ${startX} ${midY} L ${offsetX} ${midY} L ${offsetX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
-                        } else {
-                            pathData = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
-                        }
+                        // Tracé en "escalier" pour éviter les croisements
+                        const pathData = `M ${startX} ${startY} 
+                                         L ${midX} ${startY + 20}
+                                         L ${midX} ${midY} 
+                                         L ${endX} ${midY} 
+                                         L ${endX} ${endY}`;
                         
                         path.setAttribute("d", pathData); 
                         path.setAttribute("stroke", "#007AFF"); 
@@ -1154,13 +1071,14 @@
                     }
                 }
 
+                // Lignes pour les ponts radio (inchangé)
                 if (eq.linkedTo && eq.id < eq.linkedTo) {
                     const partner = equipments.find(e => e.id === eq.linkedTo);
                     if (partner) {
                         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                         const d = `M ${eq.x + 80} ${eq.y + 30} L ${partner.x + 80} ${partner.y + 30}`;
                         path.setAttribute("d", d);
-                        path.setAttribute("stroke", "black");
+                        path.setAttribute("stroke", "#007AFF");
                         path.setAttribute("stroke-width", "2");
                         path.setAttribute("stroke-dasharray", "5,5"); 
                         path.setAttribute("fill", "none");
@@ -1207,7 +1125,8 @@
                     ${photoHtml}
                     <div class="icon">${getIcon(eq.type)}</div>
                     <div class="device-name">${eq.deviceName}</div>
-                    ${eq.ip ? `<div class="ip-addr">${eq.ip}</div>` : ''} <div class="loc">${eq.loc}</div>`;
+                    ${eq.ip ? `<div class="ip-addr">${eq.ip}</div>` : ''}
+                    <div class="loc">${eq.loc}</div>`;
                 
                 if (eq.photo) {
                     const photoSec = div.querySelector('.photo-section');
@@ -1242,10 +1161,9 @@
         let activeDragId = null; let dragStartX = 0; let dragStartY = 0; let initialObjX = 0; let initialObjY = 0;
 
         function startDrag(e) {
-            // Empêcher le drag si on clique sur les boutons rapides
-            // Sauf si on est en mode sélection, où le drag est géré par la box
+            // AJOUT : Bloquer le drag si on est en mode sélection de zone
             if (isSelectionMode) return;
-            
+
             if (e.target.classList.contains('quick-add-btn') || e.target.classList.contains('quick-delete-btn')) return;
 
             activeDragId = e.currentTarget.id;
@@ -1322,7 +1240,285 @@
             }
         }
 
-        /* MODIFIÉ : Retourne l'ID pour le parentage des HP */
+        function openAddModal() {
+            document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
+            const sel = document.getElementById('newParent');
+            sel.innerHTML = '<option value="">-- Racine --</option>';
+            equipments.forEach(eq => sel.innerHTML += `<option value="${eq.id}">${eq.deviceName}</option>`);
+            
+            editingEquipmentId = null;
+            document.getElementById('modalTitle').innerText = "Nouvel Équipement";
+            document.getElementById('modalActionBtn').innerText = "Ajouter";
+            document.getElementById('newType').value = 'switch';
+            document.getElementById('radioMode').value = 'couple'; 
+            
+            updateFormFields('switch'); 
+            
+            document.getElementById('newLocation').value = '';
+            document.getElementById('newLocationPR').value = '';
+            document.getElementById('newParent').value = '';
+            document.getElementById('newQuantity').value = "1";
+            document.getElementById('radioCoupleQuantity').value = "1";
+            document.getElementById('hpCount').value = "1";
+            updateHPFields();
+            
+            document.getElementById('addModal').style.display = 'flex';
+        }
+
+        function openEditModal(id) {
+            const eq = equipments.find(e => e.id === id);
+            if (!eq) return;
+            document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
+            
+            const sel = document.getElementById('newParent');
+            sel.innerHTML = '<option value="">-- Racine --</option>';
+            equipments.forEach(e => { if (e.id !== id) sel.innerHTML += `<option value="${e.id}">${e.deviceName}</option>`; });
+
+            editingEquipmentId = id;
+            document.getElementById('modalTitle').innerText = "Modifier l'Équipement";
+            document.getElementById('modalActionBtn').innerText = "Modifier";
+            
+            document.getElementById('newType').value = eq.type;
+            
+            if (eq.type === 'radio') {
+                document.getElementById('radioModeGroup').style.display = 'block';
+                
+                if (eq.linkedTo) {
+                    document.getElementById('radioMode').value = 'couple';
+                    updateRadioFields(eq.deviceName, eq.ip); 
+                    
+                    const partner = equipments.find(e => e.id === eq.linkedTo);
+                    let isPE = eq.deviceName.startsWith('PE') || (eq.id < partner.id);
+                    
+                    if (isPE) {
+                        document.getElementById('newLocation').value = eq.loc;
+                        document.getElementById('newLocationPR').value = partner ? partner.loc : '';
+                    } else {
+                        document.getElementById('newLocation').value = partner ? partner.loc : '';
+                        document.getElementById('newLocationPR').value = eq.loc;
+                    }
+                } else {
+                    document.getElementById('radioMode').value = eq.deviceName.startsWith('PE') ? 'pe' : 'pr';
+                    updateRadioFields(eq.deviceName, eq.ip);
+                    document.getElementById('newLocation').value = eq.loc;
+                }
+            } else {
+                updateFormFields(eq.type, eq.deviceName, eq.ip);
+                document.getElementById('newLocation').value = eq.loc;
+            }
+            
+            document.getElementById('newParent').value = eq.parent || '';
+            document.getElementById('addModal').style.display = 'flex';
+        }
+
+        function closeAddModal() { 
+            document.getElementById('addModal').style.display = 'none'; 
+            document.querySelectorAll('.floating-ui').forEach(el => el.classList.remove('modal-open'));
+            editingEquipmentId = null;
+            suggestedX = null;
+            suggestedY = null;
+        }
+
+        /* CORRIGÉ : Fonction manquante ajoutée */
+        function getNextNEquipments(type, quantity) {
+            const presets = presetsByType[type];
+            if (!presets) return [];
+            
+            const usedNames = equipments.filter(eq => eq.type === type).map(eq => eq.deviceName);
+            const usedIPs = equipments.map(eq => eq.ip);
+            
+            const result = [];
+            let nameIndex = 0;
+            let ipIndex = 0;
+            
+            while (result.length < quantity && nameIndex < presets.names.length) {
+                const name = presets.names[nameIndex];
+                const ip = presets.ips[ipIndex];
+                
+                if (!usedNames.includes(name) && !usedIPs.includes(ip)) {
+                    result.push({ name, ip });
+                    usedNames.push(name);
+                    usedIPs.push(ip);
+                }
+                
+                nameIndex++;
+                ipIndex++;
+            }
+            
+            return result;
+        }
+
+        /* CORRIGÉ : Logique ajout multiple réécrite */
+        function addEquipment() {
+            const type = document.getElementById('newType').value;
+            const locPE = document.getElementById('newLocation').value || "Lieu PE";
+            const locPR = document.getElementById('newLocationPR').value || "Lieu PR";
+            const parent = document.getElementById('newParent').value || null;
+            
+            const deviceName = document.getElementById('newDeviceName').value || "Appareil";
+            const ip = document.getElementById('newIP').value || "";
+
+            if (editingEquipmentId) {
+                const eq = equipments.find(e => e.id === editingEquipmentId);
+                const radioMode = document.getElementById('radioMode').value;
+
+                if (eq) {
+                    if (eq.type === 'radio' && radioMode === 'couple' && eq.linkedTo) {
+                        const partner = equipments.find(e => e.id === eq.linkedTo);
+                        let isPE = eq.deviceName.startsWith('PE') || (eq.id < partner.id);
+                        if (isPE) { 
+                            eq.loc = locPE; 
+                            eq.parent = null; 
+                            if(partner) { partner.loc = locPR; partner.parent = parent; }
+                        } else { 
+                            eq.loc = locPR; 
+                            eq.parent = parent; 
+                            if(partner) { partner.loc = locPE; partner.parent = null; }
+                        }
+                    } else {
+                        eq.type = type; eq.deviceName = deviceName; eq.ip = ip; eq.loc = locPE; eq.parent = parent;
+                    }
+                    showToast("Équipement modifié !");
+                }
+            } else {
+                const radioMode = document.getElementById('radioMode').value;
+                let quantity = parseInt(document.getElementById('newQuantity').value) || 1;
+                
+                if (quantity > 20) quantity = 20;
+
+                let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 200) / currentZoom;
+                let scrollY = (document.getElementById('workspace-wrapper').scrollTop + 300) / currentZoom;
+                
+                if (suggestedX !== null && suggestedY !== null) {
+                    scrollX = suggestedX;
+                    scrollY = suggestedY;
+                    suggestedX = null;
+                    suggestedY = null;
+                }
+
+                if (type === 'radio' && radioMode === 'couple') {
+                    const select = document.getElementById('newDeviceName');
+                    const index = select.value;
+
+                    if (index === "" || index === "__manual__") {
+                        addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
+                    } else {
+                        // NOUVEAU : Récupérer la quantité de couples
+                        const coupleQuantity = parseInt(document.getElementById('radioCoupleQuantity').value) || 1;
+
+                        // Créer plusieurs couples à la suite
+                        for (let i = 0; i < coupleQuantity; i++) {
+                            // Calculer l'index du couple dans la liste
+                            const coupleIndex = parseInt(index) + i;
+
+                            // Vérifier qu'on ne dépasse pas les couples disponibles
+                            if (coupleIndex >= radioData.couples.length) {
+                                alert(`Attention : Seulement ${i} couples disponibles`);
+                                break;
+                            }
+
+                            const coupleData = radioData.couples[coupleIndex];
+                            const timestamp = Date.now() + (i * 2); // Décalage pour ID uniques
+                            const idPR = 'eq-' + timestamp;
+                            const idPE = 'eq-' + (timestamp + 1);
+
+                            // Calculer la position horizontale (en ligne)
+                            const offsetX = i * 400; // 400px entre chaque couple (PR + PE = 200px + espace)
+
+                            // PR à gauche (connecté au parent OU au PE précédent)
+                            const prParent = (i === 0) ? parent : ('eq-' + (timestamp - 1)); // PE précédent
+
+                            equipments.push({
+                                id: idPR,
+                                type: 'radio',
+                                deviceName: coupleData.prName,
+                                ip: coupleData.prIp,
+                                loc: locPR,
+                                parent: prParent,
+                                x: scrollX + offsetX,
+                                y: scrollY,
+                                linkedTo: idPE
+                            });
+
+                            // PE à droite (+200px)
+                            equipments.push({
+                                id: idPE,
+                                type: 'radio',
+                                deviceName: coupleData.peName,
+                                ip: coupleData.peIp,
+                                loc: locPE,
+                                parent: null,
+                                x: scrollX + offsetX + 200,
+                                y: scrollY,
+                                linkedTo: idPR
+                            });
+                        }
+
+                        showToast(`✅ ${coupleQuantity} couple(s) radio ajouté(s) !`);
+                    }
+                } 
+                else if (type === 'ampli') {
+                    const newEquipmentId = addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
+                    
+                    const hpCount = parseInt(document.getElementById('hpCount')?.value || 1);
+                    const ampliLocation = locPE || "Même lieu que l'ampli";
+                    
+                    for (let i = 1; i <= hpCount; i++) {
+                        const hpName = document.getElementById(`hpName${i}`)?.value || `HP${i}`;
+                        
+                        equipments.push({
+                            id: 'eq-' + Date.now() + '-hp' + i + Math.random().toString(36).substr(2, 5),
+                            type: 'hp',
+                            deviceName: hpName,
+                            ip: '',
+                            loc: ampliLocation,
+                            parent: newEquipmentId,
+                            x: scrollX + ((i - 1) * 220),
+                            y: scrollY + 200
+                        });
+                    }
+                    
+                    showToast(`✅ Ampli + ${hpCount} HP ajoutés !`);
+                }
+                else {
+                    const presets = presetsByType[type];
+                    
+                    if (quantity > 1 && presets) {
+                        const equipData = getNextNEquipments(type, quantity);
+                        
+                        if (equipData.length === 0) {
+                            alert(`Plus de noms/IPs disponibles pour ce type`);
+                            return;
+                        }
+                        
+                        const SPACING_X = 220;
+                        const SPACING_Y = 180;
+                        const COLS = 3;
+                        
+                        equipData.forEach((data, index) => {
+                            const row = Math.floor(index / COLS);
+                            const col = index % COLS;
+                            const x = scrollX + (col * SPACING_X);
+                            const y = scrollY + (row * SPACING_Y);
+                            
+                            addSingleNode(type, data.name, data.ip, locPE, parent, x, y);
+                        });
+                        
+                        showToast(`✅ ${equipData.length} équipements ajoutés !`);
+                    } else {
+                        addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
+                        showToast("Équipement ajouté !");
+                    }
+                }
+            }
+
+            markAsUnsaved(); 
+            selectedEquipmentId = null;
+            updateFloatingButtons();
+            render(); 
+            closeAddModal();
+        }
+
         function addSingleNode(type, name, ip, loc, parent, x, y) {
             const newId = 'eq-' + Date.now() + Math.random().toString(36).substr(2, 5);
             equipments.push({
@@ -1343,16 +1539,240 @@
         }
 
         function downloadPDF() {
-            const name = document.getElementById('siteName').value; deselectAll();
+            if (!document.getElementById('siteName').value) {
+                alert("Veuillez saisir un nom de site avant d'exporter");
+                return;
+            }
+            
+            const name = document.getElementById('siteName').value;
+            deselectAll();
+            
             const oldZoom = currentZoom;
-            document.getElementById('workspace-container').style.transform = `scale(1)`;
-            html2canvas(document.getElementById('workspace-container'), { scale: 2 }).then(canvas => {
-                const pdf = new jspdf.jsPDF({ orientation: 'l', unit: 'px', format: [canvas.width, canvas.height] });
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvas.width, canvas.height);
-                pdf.save(`Synoptique_${name}.pdf`);
-                document.getElementById('workspace-container').style.transform = `scale(${oldZoom})`;
+            const wrapper = document.getElementById('workspace-wrapper');
+            const container = document.getElementById('workspace-container');
+            
+            if (equipments.length === 0) {
+                alert("Aucun équipement à exporter");
+                return;
+            }
+            
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+            
+            equipments.forEach(eq => {
+                minX = Math.min(minX, eq.x);
+                minY = Math.min(minY, eq.y);
+                maxX = Math.max(maxX, eq.x + 200);
+                maxY = Math.max(maxY, eq.y + 200);
             });
+            
+            const MARGIN = 50;
+            minX = Math.max(0, minX - MARGIN);
+            minY = Math.max(0, minY - MARGIN);
+            maxX = maxX + MARGIN;
+            maxY = maxY + MARGIN;
+            
+            const captureWidth = maxX - minX;
+            const captureHeight = maxY - minY;
+            
+            container.style.transform = 'scale(1)';
+            wrapper.scrollLeft = minX;
+            wrapper.scrollTop = minY;
+            
+            showToast("📄 Génération du PDF...");
+            
+            setTimeout(() => {
+                const options = {
+                    x: minX,
+                    y: minY,
+                    width: captureWidth,
+                    height: captureHeight,
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#F2F2F7',
+                    logging: false,
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: captureWidth,
+                    windowHeight: captureHeight
+                };
+                
+                html2canvas(container, options).then(canvas => {
+                    try {
+                        const imgWidth = canvas.width / 2;
+                        const imgHeight = canvas.height / 2;
+                        
+                        const orientation = imgWidth > imgHeight ? 'landscape' : 'portrait';
+                        const pdf = new jspdf.jsPDF({
+                            orientation: orientation,
+                            unit: 'mm',
+                            format: 'a4'
+                        });
+                        
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        
+                        const ratio = Math.min(
+                            pageWidth / (imgWidth * 0.264583),
+                            pageHeight / (imgHeight * 0.264583)
+                        );
+                        
+                        const pdfWidth = imgWidth * 0.264583 * ratio;
+                        const pdfHeight = imgHeight * 0.264583 * ratio;
+                        
+                        const x = (pageWidth - pdfWidth) / 2;
+                        const y = (pageHeight - pdfHeight) / 2;
+                        
+                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                        pdf.addImage(imgData, 'JPEG', x, y, pdfWidth, pdfHeight);
+                        pdf.save(`Synoptique_${name}.pdf`);
+                        showToast("✅ PDF généré avec succès !");
+                        
+                    } catch (error) {
+                        console.error('Erreur génération PDF:', error);
+                        alert("Erreur lors de la génération du PDF : " + error.message);
+                    } finally {
+                        container.style.transform = `scale(${oldZoom})`;
+                    }
+                }).catch(error => {
+                    console.error('Erreur html2canvas:', error);
+                    alert("Erreur lors de la capture : " + error.message);
+                    container.style.transform = `scale(${oldZoom})`;
+                });
+            }, 300);
         }
+
+        /* Active/Désactive le mode suppression de zone */
+        function toggleSelectionMode() {
+            isSelectionMode = !isSelectionMode;
+            const btn = document.getElementById('delZoneBtn');
+            const body = document.body;
+
+            if (isSelectionMode) {
+                btn.classList.add('active');
+                body.classList.add('selection-mode');
+                showToast("Mode suppression : Cliquez pour commencer la zone");
+                deselectAll(); // Désélectionne les objets actifs
+            } else {
+                btn.classList.remove('active');
+                body.classList.remove('selection-mode');
+                resetSelectionBox();
+            }
+        }
+
+        /* Gère les clics pour définir le début et la fin de la zone */
+        function handleWorkspaceClick(e) {
+            // Si on n'est pas en mode sélection, appeler la fonction deselectAll normale
+            if (!isSelectionMode) {
+                deselectAll(e);
+                return;
+            }
+
+            // Ignorer si on clique sur un équipement
+            if (e.target.closest('.node')) return;
+
+            const container = document.getElementById('workspace-container');
+            const rect = container.getBoundingClientRect();
+
+            // Coordonnées relatives au conteneur zoomé
+            const x = (e.clientX - rect.left) / currentZoom;
+            const y = (e.clientY - rect.top) / currentZoom;
+
+            if (!selectionStart) {
+                // Premier clic : démarrer la zone
+                selectionStart = { x, y };
+                const box = document.getElementById('selectionBox');
+                box.style.left = x + 'px';
+                box.style.top = y + 'px';
+                box.style.width = '0px';
+                box.style.height = '0px';
+                box.style.display = 'block';
+
+                // Ajouter écouteur de mouvement pour dessiner le carré
+                document.addEventListener('mousemove', handleSelectionMove);
+            } else {
+                // Deuxième clic : terminer la zone et proposer la suppression
+                document.removeEventListener('mousemove', handleSelectionMove);
+                processBulkDelete(selectionStart, { x, y });
+                resetSelectionBox();
+                toggleSelectionMode(); // Quitter le mode automatiquement
+            }
+        }
+
+        /* Dessine le carré en temps réel */
+        function handleSelectionMove(e) {
+            if (!selectionStart) return;
+
+            const container = document.getElementById('workspace-container');
+            const rect = container.getBoundingClientRect();
+            const currentX = (e.clientX - rect.left) / currentZoom;
+            const currentY = (e.clientY - rect.top) / currentZoom;
+
+            const box = document.getElementById('selectionBox');
+
+            const width = Math.abs(currentX - selectionStart.x);
+            const height = Math.abs(currentY - selectionStart.y);
+            const left = Math.min(currentX, selectionStart.x);
+            const top = Math.min(currentY, selectionStart.y);
+
+            box.style.width = width + 'px';
+            box.style.height = height + 'px';
+            box.style.left = left + 'px';
+            box.style.top = top + 'px';
+        }
+
+        /* Réinitialise le carré */
+        function resetSelectionBox() {
+            selectionStart = null;
+            const box = document.getElementById('selectionBox');
+            box.style.display = 'none';
+            document.removeEventListener('mousemove', handleSelectionMove);
+        }
+
+        /* Calcule les éléments dans la zone et supprime */
+        function processBulkDelete(start, end) {
+            const minX = Math.min(start.x, end.x);
+            const maxX = Math.max(start.x, end.x);
+            const minY = Math.min(start.y, end.y);
+            const maxY = Math.max(start.y, end.y);
+
+            // Trouver les équipements dont le centre est dans la zone
+            const toDelete = equipments.filter(eq => {
+                const centerX = eq.x + 80; // Largeur approx 160/2
+                const centerY = eq.y + 60; // Hauteur approx 120/2
+                return centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY;
+            });
+
+            if (toDelete.length === 0) {
+                showToast("Aucun équipement sélectionné");
+                return;
+            }
+
+            if (confirm(`Voulez-vous supprimer ces ${toDelete.length} équipements sélectionnés ?`)) {
+                const idsToDelete = toDelete.map(eq => eq.id);
+
+                // Filtrer la liste principale
+                equipments = equipments.filter(eq => !idsToDelete.includes(eq.id));
+
+                // Nettoyer les liens orphelins (parents ou ponts radio)
+                equipments.forEach(eq => {
+                    if (idsToDelete.includes(eq.parent)) eq.parent = null;
+                    if (idsToDelete.includes(eq.linkedTo)) delete eq.linkedTo;
+                });
+
+                markAsUnsaved();
+                render();
+                showToast(`🗑️ ${toDelete.length} équipements supprimés`);
+            }
+        }
+
+        /* Raccourci Clavier Echap */
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isSelectionMode) {
+                toggleSelectionMode();
+            }
+        });
 
         window.onload = render;
     </script>
