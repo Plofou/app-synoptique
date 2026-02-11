@@ -510,12 +510,12 @@
 
         const presetsByType = {
             bullet: {
-                names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10'],
-                ips: ['172.16.0.101', '172.16.0.102', '172.16.0.103', '172.16.0.104', '172.16.0.105', '172.16.0.106', '172.16.0.107', '172.16.0.108', '172.16.0.109', '172.16.0.110']
+                names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10', 'CAM11', 'CAM12', 'CAM13', 'CAM14', 'CAM15', 'CAM16', 'CAM17', 'CAM18', 'CAM19', 'CAM20'],
+                ips: ['172.16.0.101', '172.16.0.102', '172.16.0.103', '172.16.0.104', '172.16.0.105', '172.16.0.106', '172.16.0.107', '172.16.0.108', '172.16.0.109', '172.16.0.110', '172.16.0.111', '172.16.0.112', '172.16.0.113', '172.16.0.114', '172.16.0.115', '172.16.0.116', '172.16.0.117', '172.16.0.118', '172.16.0.119', '172.16.0.120']
             },
             dome: {
-                names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10'],
-                ips: ['172.16.0.101', '172.16.0.102', '172.16.0.103', '172.16.0.104', '172.16.0.105', '172.16.0.106', '172.16.0.107', '172.16.0.108', '172.16.0.109', '172.16.0.110']
+                names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10', 'CAM11', 'CAM12', 'CAM13', 'CAM14', 'CAM15', 'CAM16', 'CAM17', 'CAM18', 'CAM19', 'CAM20'],
+                ips: ['172.16.0.101', '172.16.0.102', '172.16.0.103', '172.16.0.104', '172.16.0.105', '172.16.0.106', '172.16.0.107', '172.16.0.108', '172.16.0.109', '172.16.0.110', '172.16.0.111', '172.16.0.112', '172.16.0.113', '172.16.0.114', '172.16.0.115', '172.16.0.116', '172.16.0.117', '172.16.0.118', '172.16.0.119', '172.16.0.120']
             },
             switch: {
                 names: ['SWITCH1', 'SWITCH2', 'SWITCH3', 'SWITCH4', 'SWITCH5', 'SWITCH6', 'SWITCH7', 'SWITCH8', 'SWITCH9', 'SWITCH10'],
@@ -1373,20 +1373,6 @@
                             const row = Math.floor(i / 3);
                             const posX = scrollX + (col * 220); 
                             const posY = scrollY + (row * 160) + (i > 0 ? 0 : 0); // Ajustement si besoin
-
-                            // Note: Pour simplifier, ici on réutilise addSingleNode mais sans récupérer l'ID
-                            // Idéalement on factoriserait mieux, mais pour ce patch rapide :
-                            
-                            // Petite astuce pour la grille : le premier est déjà placé en (0,0) relatif
-                            // Les suivants doivent être décalés
-                            // Si quantity > 1, on aurait dû tout gérer dans la boucle.
-                            // CORRECTION : Si quantity > 1, on supprime le premier créé hors boucle et on refait tout propre ?
-                            // NON, on va juste ajouter les (quantity - 1) suivants.
-                            
-                            // Calcul position grille pour les suivants
-                            // i=1 -> col 1, row 0
-                            // i=2 -> col 2, row 0
-                            // i=3 -> col 0, row 1...
                             
                             addSingleNode(type, finalName, finalIP, locPE, parent, scrollX + (i%3)*220, scrollY + Math.floor(i/3)*220);
                         }
