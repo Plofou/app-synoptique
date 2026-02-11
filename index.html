@@ -963,50 +963,53 @@
             updateZoomDisplay(); 
         }
 
+        /* SOLUTION SIMPLE ET EFFICACE : Chaque enfant a son propre couloir */
         function updateConnectionsOnly() {
             const layer = document.getElementById('connections-layer');
             layer.innerHTML = ''; 
+            
+            // Grouper les enfants par parent pour leur donner un index unique
+            const childrenByParent = {};
+            equipments.forEach(eq => {
+                if (eq.parent) {
+                    if (!childrenByParent[eq.parent]) {
+                        childrenByParent[eq.parent] = [];
+                    }
+                    childrenByParent[eq.parent].push(eq);
+                }
+            });
             
             equipments.forEach(eq => {
                 if (eq.parent) {
                     const parent = equipments.find(e => e.id === eq.parent);
                     if (parent) {
                         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        
+                        // Points de départ et arrivée
                         const startX = parent.x + 80;
                         const startY = parent.y + 120;
                         const endX = eq.x + 80;
                         const endY = eq.y;
-                        let offsetX = 0;
                         
-                        const lineTop = Math.min(startY, endY);
-                        const lineBottom = Math.max(startY, endY);
-                        const lineLeft = Math.min(startX, endX);
-                        const lineRight = Math.max(startX, endX);
+                        // Trouver l'index de cet enfant parmi les enfants de ce parent
+                        const siblings = childrenByParent[eq.parent];
+                        const childIndex = siblings.findIndex(child => child.id === eq.id);
+                        const totalSiblings = siblings.length;
                         
-                        equipments.forEach(other => {
-                            if (other.id === eq.id || other.id === parent.id) return;
-                            const eqLeft = other.x - 20;
-                            const eqRight = other.x + 180 + 20;
-                            const eqTop = other.y - 20;
-                            const eqBottom = other.y + 140 + 20;
-                            
-                            const horizontalOverlap = !(eqRight < lineLeft || eqLeft > lineRight);
-                            const verticalOverlap = !(eqBottom < lineTop || eqTop > lineBottom);
-                            
-                            if (horizontalOverlap && verticalOverlap) {
-                                if (startX < endX) { offsetX = Math.min(offsetX, eqLeft - 30); } 
-                                else { offsetX = Math.max(offsetX, eqRight + 30); }
-                            }
-                        });
+                        // Décalage horizontal unique pour chaque enfant (en "escalier")
+                        const HORIZONTAL_SPACING = 40; // Espacement entre chaque ligne
+                        const horizontalOffset = (childIndex - Math.floor(totalSiblings / 2)) * HORIZONTAL_SPACING;
                         
-                        let pathData;
+                        // Point intermédiaire décalé horizontalement
+                        const midX = startX + horizontalOffset;
                         const midY = (startY + endY) / 2;
                         
-                        if (offsetX !== 0) {
-                            pathData = `M ${startX} ${startY} L ${startX} ${midY} L ${offsetX} ${midY} L ${offsetX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
-                        } else {
-                            pathData = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
-                        }
+                        // Tracé en "escalier" pour éviter les croisements
+                        const pathData = `M ${startX} ${startY} 
+                                         L ${midX} ${startY + 20}
+                                         L ${midX} ${midY} 
+                                         L ${endX} ${midY} 
+                                         L ${endX} ${endY}`;
                         
                         path.setAttribute("d", pathData); 
                         path.setAttribute("stroke", "#007AFF"); 
@@ -1018,6 +1021,7 @@
                     }
                 }
 
+                // Lignes pour les ponts radio (inchangé)
                 if (eq.linkedTo && eq.id < eq.linkedTo) {
                     const partner = equipments.find(e => e.id === eq.linkedTo);
                     if (partner) {
