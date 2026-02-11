@@ -71,7 +71,7 @@
         .status-dot { font-size: 12px; }
 
         /* Header Actions */
-        .header-actions { display: flex; gap: 8px; flex: 1; }
+        .header-actions { display: flex; gap: 8px; flex: 0 0 auto; }
 
         .header-btn-labeled {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -510,6 +510,7 @@
             render(); 
             updateZoomDisplay(); 
             
+            /* MODIFIÉ : Scroll forcé vers (0, 0) au démarrage */
             setTimeout(function() {
                 const wrapper = document.getElementById('workspace-wrapper');
                 wrapper.scrollLeft = 0;
@@ -548,6 +549,7 @@
             } else { alert("Code incorrect"); }
         }
 
+        /* MODIFIÉ : Position routeur x: 100 au lieu de 5000 */
         let equipments = [
             { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '192.168.1.1', loc: 'Entrée', x: 100, y: 100, parent: null }
         ];
@@ -567,6 +569,65 @@
                 'pupitre': 'pupitre.jpg'
             };
             return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
+        }
+
+        /* CORRIGÉ : Export PDF avec images */
+        function downloadPDF() {
+            if (!document.getElementById('siteName').value) {
+                alert("Veuillez saisir un nom de site avant d'exporter");
+                return;
+            }
+            
+            const name = document.getElementById('siteName').value;
+            deselectAll();
+            
+            const oldZoom = currentZoom;
+            const container = document.getElementById('workspace-container');
+            
+            container.style.transform = 'scale(1)';
+            showToast("Génération du PDF en cours...");
+            
+            const options = {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#F2F2F7',
+                logging: false,
+                width: container.scrollWidth,
+                height: container.scrollHeight,
+                windowWidth: container.scrollWidth,
+                windowHeight: container.scrollHeight
+            };
+            
+            setTimeout(() => {
+                html2canvas(container, options).then(canvas => {
+                    try {
+                        const imgWidth = canvas.width;
+                        const imgHeight = canvas.height;
+                        
+                        const pdf = new jspdf.jsPDF({
+                            orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+                            unit: 'px',
+                            format: [imgWidth, imgHeight]
+                        });
+                        
+                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+                        pdf.save(`Synoptique_${name}.pdf`);
+                        showToast("✅ PDF généré avec succès !");
+                        
+                    } catch (error) {
+                        console.error('Erreur génération PDF:', error);
+                        alert("Erreur lors de la génération du PDF");
+                    } finally {
+                        container.style.transform = `scale(${oldZoom})`;
+                    }
+                }).catch(error => {
+                    console.error('Erreur html2canvas:', error);
+                    alert("Erreur lors de la capture du synoptique");
+                    container.style.transform = `scale(${oldZoom})`;
+                });
+            }, 500);
         }
 
         function saveProject() {
@@ -1256,125 +1317,17 @@
             markAsUnsaved(); 
         }
 
-function downloadPDF() {
-    if (!document.getElementById('siteName').value) {
-        alert("Veuillez saisir un nom de site avant d'exporter");
-        return;
-    }
-    
-    const name = document.getElementById('siteName').value;
-    deselectAll();
-    
-    // Sauvegarder l'état actuel
-    const oldZoom = currentZoom;
-    const wrapper = document.getElementById('workspace-wrapper');
-    const container = document.getElementById('workspace-container');
-    
-    // Calculer la zone contenant tous les équipements
-    if (equipments.length === 0) {
-        alert("Aucun équipement à exporter");
-        return;
-    }
-    
-    let minX = Infinity, minY = Infinity;
-    let maxX = -Infinity, maxY = -Infinity;
-    
-    equipments.forEach(eq => {
-        minX = Math.min(minX, eq.x);
-        minY = Math.min(minY, eq.y);
-        maxX = Math.max(maxX, eq.x + 200);
-        maxY = Math.max(maxY, eq.y + 200);
-    });
-    
-    // Ajouter des marges
-    const MARGIN = 50;
-    minX = Math.max(0, minX - MARGIN);
-    minY = Math.max(0, minY - MARGIN);
-    maxX = maxX + MARGIN;
-    maxY = maxY + MARGIN;
-    
-    const captureWidth = maxX - minX;
-    const captureHeight = maxY - minY;
-    
-    // Réinitialiser le zoom
-    container.style.transform = 'scale(1)';
-    
-    // Scroller vers la zone à capturer
-    wrapper.scrollLeft = minX;
-    wrapper.scrollTop = minY;
-    
-    showToast("📄 Génération du PDF...");
-    
-    // Attendre que le scroll soit fini
-    setTimeout(() => {
-        // Options de capture optimisées
-        const options = {
-            x: minX,
-            y: minY,
-            width: captureWidth,
-            height: captureHeight,
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#F2F2F7',
-            logging: false,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: captureWidth,
-            windowHeight: captureHeight
-        };
-        
-        html2canvas(container, options).then(canvas => {
-            try {
-                // Créer le PDF
-                const imgWidth = canvas.width / 2; // Diviser par scale
-                const imgHeight = canvas.height / 2;
-                
-                // Format A4 landscape ou portrait selon l'orientation
-                const orientation = imgWidth > imgHeight ? 'landscape' : 'portrait';
-                const pdf = new jspdf.jsPDF({
-                    orientation: orientation,
-                    unit: 'mm',
-                    format: 'a4'
-                });
-                
-                // Calculer les dimensions pour tenir dans A4
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                
-                const ratio = Math.min(
-                    pageWidth / (imgWidth * 0.264583), // px to mm
-                    pageHeight / (imgHeight * 0.264583)
-                );
-                
-                const pdfWidth = imgWidth * 0.264583 * ratio;
-                const pdfHeight = imgHeight * 0.264583 * ratio;
-                
-                const x = (pageWidth - pdfWidth) / 2;
-                const y = (pageHeight - pdfHeight) / 2;
-                
-                // Ajouter l'image
-                const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                pdf.addImage(imgData, 'JPEG', x, y, pdfWidth, pdfHeight);
-                
-                // Sauvegarder
+        function downloadPDF() {
+            const name = document.getElementById('siteName').value; deselectAll();
+            const oldZoom = currentZoom;
+            document.getElementById('workspace-container').style.transform = `scale(1)`;
+            html2canvas(document.getElementById('workspace-container'), { scale: 2 }).then(canvas => {
+                const pdf = new jspdf.jsPDF({ orientation: 'l', unit: 'px', format: [canvas.width, canvas.height] });
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvas.width, canvas.height);
                 pdf.save(`Synoptique_${name}.pdf`);
-                showToast("✅ PDF généré avec succès !");
-                
-            } catch (error) {
-                console.error('Erreur génération PDF:', error);
-                alert("Erreur lors de la génération du PDF : " + error.message);
-            } finally {
-                // Restaurer l'état
-                container.style.transform = `scale(${oldZoom})`;
-            }
-        }).catch(error => {
-            console.error('Erreur html2canvas:', error);
-            alert("Erreur lors de la capture : " + error.message);
-            container.style.transform = `scale(${oldZoom})`;
-        });
-    }, 300);
-}
+                document.getElementById('workspace-container').style.transform = `scale(${oldZoom})`;
+            });
+        }
 
         window.onload = render;
     </script>
