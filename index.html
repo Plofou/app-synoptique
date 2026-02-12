@@ -350,6 +350,36 @@
         /* Ajustement pour le mode sombre */
         body.dark-mode .del-zone-btn:hover { background: #3b1a1a; }
 
+        /* Style du bouton Sélection Multiple */
+        .multi-select-btn { border: 2px solid #5856D6; color: #5856D6; }
+        .multi-select-btn:hover { background: #f0f0ff; }
+        .multi-select-btn.active { background: #5856D6; color: white; }
+        .multi-select-btn.active .btn-label { color: white; }
+
+        /* Ajustement pour le mode sombre */
+        body.dark-mode .multi-select-btn:hover { background: #2a2a4a; }
+
+        /* Style du bouton Stylo */
+        .pen-btn { border: 2px solid var(--success); color: var(--success); }
+        .pen-btn:hover { background: #f0fdf4; }
+        .pen-btn.active { background: var(--success); color: white; }
+        .pen-btn.active .btn-label { color: white; }
+
+        /* Ajustement pour le mode sombre */
+        body.dark-mode .pen-btn:hover { background: #1b3320; }
+
+        /* Équipements sélectionnés en multi-sélection */
+        .node.multi-selected {
+            border-color: #5856D6 !important;
+            box-shadow: 0 0 0 3px rgba(88, 86, 214, 0.3) !important;
+            z-index: 15;
+        }
+
+        /* Curseur en croix quand le mode sélection multiple est actif */
+        body.multi-select-mode #workspace-container {
+            cursor: crosshair !important;
+        }
+
         /* Le carré de sélection visuel */
         #selectionBox {
             position: absolute;
@@ -363,6 +393,20 @@
         /* Curseur en croix quand le mode est actif */
         body.selection-mode #workspace-container {
             cursor: crosshair !important;
+        }
+
+        /* Menu contextuel de connexion */
+        .connection-option:hover {
+            background-color: #f5f5f5;
+        }
+
+        body.dark-mode .connection-option:hover {
+            background-color: #3a3a3a;
+        }
+
+        body.dark-mode #connectionMenu > div {
+            background: #2c2c2c !important;
+            color: #e0e0e0;
         }
     </style>
 </head>
@@ -417,6 +461,16 @@
             <button class="header-btn-labeled del-zone-btn" id="delZoneBtn" onclick="toggleSelectionMode()" title="Supprimer une zone">
                 <span class="btn-icon">⛝</span>
                 <span class="btn-label">Zone Suppr.</span>
+            </button>
+
+            <button class="header-btn-labeled multi-select-btn" id="multiSelectBtn" onclick="toggleMultiSelectMode()" title="Sélectionner plusieurs équipements">
+                <span class="btn-icon">⬚</span>
+                <span class="btn-label">Zone Sélect.</span>
+            </button>
+
+            <button class="header-btn-labeled pen-btn" id="penBtn" onclick="togglePenMode()" title="Reconnecter des équipements">
+                <span class="btn-icon">✏️</span>
+                <span class="btn-label">Stylo</span>
             </button>
         </div>
 
@@ -562,6 +616,38 @@
 
     <div class="toast" id="toast"></div>
 
+    <div id="connectionMenu" style="display:none; position:absolute; z-index:500;">
+        <div style="background:white; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:8px; min-width:180px;">
+
+            <div class="connection-option" onclick="setConnectionStyle('ethernet')"
+                 style="padding:10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">🔵</span>
+                <span style="font-size:0.9rem; font-weight:500;">Réseau Ethernet</span>
+            </div>
+
+            <div class="connection-option" onclick="setConnectionStyle('radio')"
+                 style="padding:10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">📡</span>
+                <span style="font-size:0.9rem; font-weight:500;">Liaison Radio</span>
+            </div>
+
+            <div class="connection-option" onclick="setConnectionStyle('fiber')"
+                 style="padding:10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">💡</span>
+                <span style="font-size:0.9rem; font-weight:500;">Fibre Optique</span>
+            </div>
+
+            <hr style="margin:8px 0; border:none; border-top:1px solid #eee;">
+
+            <div class="connection-option" onclick="deleteConnection()"
+                 style="padding:10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:10px; color:#FF3B30;">
+                <span style="font-size:20px;">✂️</span>
+                <span style="font-size:0.9rem; font-weight:600;">Supprimer</span>
+            </div>
+
+        </div>
+    </div>
+
     <script>
         let selectedEquipmentId = null;
         let currentZoom = 1;
@@ -572,6 +658,13 @@
         let hasUnsavedChanges = false;
         let isSelectionMode = false;
         let selectionStart = null;
+        let selectedConnectionId = null;
+        let selectedConnectionPath = null;
+        let isPenMode = false;
+        let penFirstEquipment = null;
+        let isMultiSelectMode = false;
+        let multiSelectedIds = [];
+        let multiSelectStart = null;
 
         const presetsByType = {
             bullet: {
@@ -1061,13 +1154,47 @@
                                          L ${endX} ${midY} 
                                          L ${endX} ${endY}`;
                         
-                        path.setAttribute("d", pathData); 
-                        path.setAttribute("stroke", "#007AFF"); 
-                        path.setAttribute("stroke-width", "2");
-                        path.setAttribute("stroke-linejoin", "round");
-                        path.setAttribute("stroke-linecap", "round");
-                        path.setAttribute("fill", "none");
-                        layer.appendChild(path);
+                        // NOUVEAU : Appliquer le style personnalisé
+                        const style = eq.connectionStyle || {
+                            color: '#007AFF',
+                            width: 2,
+                            dasharray: ''
+                        };
+
+                        // 1. Créer la ligne VISIBLE (style actuel)
+                        const visiblePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        visiblePath.setAttribute("d", pathData);
+                        visiblePath.setAttribute("stroke", style.color);
+                        visiblePath.setAttribute("stroke-width", style.width);
+                        if (style.dasharray) {
+                            visiblePath.setAttribute("stroke-dasharray", style.dasharray);
+                        }
+                        visiblePath.setAttribute("stroke-linejoin", "round");
+                        visiblePath.setAttribute("stroke-linecap", "round");
+                        visiblePath.setAttribute("fill", "none");
+                        visiblePath.style.pointerEvents = 'none';  // Pas cliquable
+                        visiblePath.setAttribute("data-child-id", eq.id);
+                        visiblePath.setAttribute("data-original-width", style.width);
+
+                        // 2. Créer la ligne INVISIBLE de détection (LARGE)
+                        const hitAreaPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        hitAreaPath.setAttribute("d", pathData);
+                        hitAreaPath.setAttribute("stroke", "transparent");
+                        hitAreaPath.setAttribute("stroke-width", "20");  // LARGE pour capter les clics
+                        hitAreaPath.setAttribute("fill", "none");
+                        hitAreaPath.style.pointerEvents = 'stroke';  // Cliquable
+                        hitAreaPath.style.cursor = 'pointer';
+                        hitAreaPath.setAttribute("data-child-id", eq.id);
+
+                        // 3. Event listener sur la ligne invisible
+                        hitAreaPath.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            selectConnection(eq.id, visiblePath, e);
+                        });
+
+                        // 4. Ajouter les DEUX lignes au SVG (invisible d'abord)
+                        layer.appendChild(hitAreaPath);   // En dessous (détection)
+                        layer.appendChild(visiblePath);   // Au-dessus (visuel)
                     }
                 }
 
@@ -1142,9 +1269,20 @@
                 div.addEventListener('mousedown', startDrag);
                 div.addEventListener('touchstart', startDrag, {passive: false});
                 
-                div.addEventListener('click', (e) => { 
-                    e.stopPropagation(); deselectAll(); div.classList.add('selected');
-                    selectedEquipmentId = eq.id; updateFloatingButtons();
+                div.addEventListener('click', (e) => {
+                    e.stopPropagation();
+
+                    // MODE STYLO ACTIVÉ
+                    if (isPenMode) {
+                        handlePenModeClick(eq.id);
+                        return;  // Ne pas sélectionner l'équipement normalement
+                    }
+
+                    // MODE NORMAL (existant)
+                    deselectAll();
+                    div.classList.add('selected');
+                    selectedEquipmentId = eq.id;
+                    updateFloatingButtons();
                 });
 
                 div.addEventListener('dblclick', (e) => {
@@ -1159,10 +1297,14 @@
         }
 
         let activeDragId = null; let dragStartX = 0; let dragStartY = 0; let initialObjX = 0; let initialObjY = 0;
+        let multiDragInitialPositions = {};
 
         function startDrag(e) {
             // AJOUT : Bloquer le drag si on est en mode sélection de zone
             if (isSelectionMode) return;
+
+            // NOUVEAU : Bloquer le drag si on est en mode stylo
+            if (isPenMode) return;
 
             if (e.target.classList.contains('quick-add-btn') || e.target.classList.contains('quick-delete-btn')) return;
 
@@ -1172,6 +1314,20 @@
             dragStartX = clientX; dragStartY = clientY;
             const eq = equipments.find(item => item.id === activeDragId);
             initialObjX = eq.x; initialObjY = eq.y;
+
+            // Si l'équipement fait partie de la sélection multiple, stocker les positions de tous
+            if (multiSelectedIds.length > 0 && multiSelectedIds.includes(activeDragId)) {
+                multiDragInitialPositions = {};
+                multiSelectedIds.forEach(id => {
+                    const equipment = equipments.find(e => e.id === id);
+                    if (equipment) {
+                        multiDragInitialPositions[id] = { x: equipment.x, y: equipment.y };
+                    }
+                });
+            } else {
+                multiDragInitialPositions = {};
+            }
+
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('touchmove', onDrag, {passive: false});
             document.addEventListener('mouseup', endDrag); document.addEventListener('touchend', endDrag);
@@ -1179,17 +1335,40 @@
 
         function onDrag(e) {
             if (!activeDragId) return;
-            e.preventDefault(); 
+            e.preventDefault();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             const deltaX = (clientX - dragStartX) / currentZoom;
             const deltaY = (clientY - dragStartY) / currentZoom;
-            const newX = initialObjX + deltaX;
-            const newY = initialObjY + deltaY;
-            const eq = equipments.find(item => item.id === activeDragId);
-            eq.x = Math.max(0, newX); eq.y = Math.max(0, newY);
-            const el = document.getElementById(activeDragId);
-            el.style.left = eq.x + 'px'; el.style.top = eq.y + 'px';
+
+            // Si on déplace plusieurs équipements
+            if (Object.keys(multiDragInitialPositions).length > 0) {
+                Object.keys(multiDragInitialPositions).forEach(id => {
+                    const eq = equipments.find(item => item.id === id);
+                    if (eq) {
+                        const newX = multiDragInitialPositions[id].x + deltaX;
+                        const newY = multiDragInitialPositions[id].y + deltaY;
+                        eq.x = Math.max(0, newX);
+                        eq.y = Math.max(0, newY);
+                        const el = document.getElementById(id);
+                        if (el) {
+                            el.style.left = eq.x + 'px';
+                            el.style.top = eq.y + 'px';
+                        }
+                    }
+                });
+            } else {
+                // Déplacement d'un seul équipement
+                const newX = initialObjX + deltaX;
+                const newY = initialObjY + deltaY;
+                const eq = equipments.find(item => item.id === activeDragId);
+                eq.x = Math.max(0, newX);
+                eq.y = Math.max(0, newY);
+                const el = document.getElementById(activeDragId);
+                el.style.left = eq.x + 'px';
+                el.style.top = eq.y + 'px';
+            }
+
             updateConnectionsOnly();
         }
 
@@ -1241,11 +1420,12 @@
         }
 
         function openAddModal() {
+            closeConnectionMenu(); // Fermer le menu de connexion si ouvert
             document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
             const sel = document.getElementById('newParent');
             sel.innerHTML = '<option value="">-- Racine --</option>';
             equipments.forEach(eq => sel.innerHTML += `<option value="${eq.id}">${eq.deviceName}</option>`);
-            
+
             editingEquipmentId = null;
             document.getElementById('modalTitle').innerText = "Nouvel Équipement";
             document.getElementById('modalActionBtn').innerText = "Ajouter";
@@ -1268,6 +1448,7 @@
         function openEditModal(id) {
             const eq = equipments.find(e => e.id === id);
             if (!eq) return;
+            closeConnectionMenu(); // Fermer le menu de connexion si ouvert
             document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
             
             const sel = document.getElementById('newParent');
@@ -1654,6 +1835,15 @@
                 body.classList.add('selection-mode');
                 showToast("Mode suppression : Cliquez pour commencer la zone");
                 deselectAll(); // Désélectionne les objets actifs
+                closeConnectionMenu(); // Fermer le menu de connexion si ouvert
+
+                // Désactiver les autres modes s'ils sont actifs
+                if (isPenMode) {
+                    togglePenMode();
+                }
+                if (isMultiSelectMode) {
+                    toggleMultiSelectMode();
+                }
             } else {
                 btn.classList.remove('active');
                 body.classList.remove('selection-mode');
@@ -1663,41 +1853,81 @@
 
         /* Gère les clics pour définir le début et la fin de la zone */
         function handleWorkspaceClick(e) {
-            // Si on n'est pas en mode sélection, appeler la fonction deselectAll normale
-            if (!isSelectionMode) {
-                deselectAll(e);
+            // MODE SÉLECTION MULTIPLE
+            if (isMultiSelectMode) {
+                // Ignorer si on clique sur un équipement
+                if (e.target.closest('.node')) return;
+
+                const container = document.getElementById('workspace-container');
+                const rect = container.getBoundingClientRect();
+
+                // Coordonnées relatives au conteneur zoomé
+                const x = (e.clientX - rect.left) / currentZoom;
+                const y = (e.clientY - rect.top) / currentZoom;
+
+                if (!multiSelectStart) {
+                    // Premier clic : démarrer la zone
+                    multiSelectStart = { x, y };
+                    const box = document.getElementById('selectionBox');
+                    box.style.left = x + 'px';
+                    box.style.top = y + 'px';
+                    box.style.width = '0px';
+                    box.style.height = '0px';
+                    box.style.display = 'block';
+                    box.style.backgroundColor = 'rgba(88, 86, 214, 0.2)';
+                    box.style.borderColor = '#5856D6';
+
+                    // Ajouter écouteur de mouvement pour dessiner le carré
+                    document.addEventListener('mousemove', handleMultiSelectionMove);
+                } else {
+                    // Deuxième clic : terminer la zone et sélectionner
+                    document.removeEventListener('mousemove', handleMultiSelectionMove);
+                    processMultiSelect(multiSelectStart, { x, y });
+                    resetMultiSelectionBox();
+                    toggleMultiSelectMode(); // Quitter le mode automatiquement
+                }
                 return;
             }
 
-            // Ignorer si on clique sur un équipement
-            if (e.target.closest('.node')) return;
+            // MODE SUPPRESSION
+            if (isSelectionMode) {
+                // Ignorer si on clique sur un équipement
+                if (e.target.closest('.node')) return;
 
-            const container = document.getElementById('workspace-container');
-            const rect = container.getBoundingClientRect();
+                const container = document.getElementById('workspace-container');
+                const rect = container.getBoundingClientRect();
 
-            // Coordonnées relatives au conteneur zoomé
-            const x = (e.clientX - rect.left) / currentZoom;
-            const y = (e.clientY - rect.top) / currentZoom;
+                // Coordonnées relatives au conteneur zoomé
+                const x = (e.clientX - rect.left) / currentZoom;
+                const y = (e.clientY - rect.top) / currentZoom;
 
-            if (!selectionStart) {
-                // Premier clic : démarrer la zone
-                selectionStart = { x, y };
-                const box = document.getElementById('selectionBox');
-                box.style.left = x + 'px';
-                box.style.top = y + 'px';
-                box.style.width = '0px';
-                box.style.height = '0px';
-                box.style.display = 'block';
+                if (!selectionStart) {
+                    // Premier clic : démarrer la zone
+                    selectionStart = { x, y };
+                    const box = document.getElementById('selectionBox');
+                    box.style.left = x + 'px';
+                    box.style.top = y + 'px';
+                    box.style.width = '0px';
+                    box.style.height = '0px';
+                    box.style.display = 'block';
+                    box.style.backgroundColor = 'rgba(255, 59, 48, 0.2)';
+                    box.style.borderColor = '#FF3B30';
 
-                // Ajouter écouteur de mouvement pour dessiner le carré
-                document.addEventListener('mousemove', handleSelectionMove);
-            } else {
-                // Deuxième clic : terminer la zone et proposer la suppression
-                document.removeEventListener('mousemove', handleSelectionMove);
-                processBulkDelete(selectionStart, { x, y });
-                resetSelectionBox();
-                toggleSelectionMode(); // Quitter le mode automatiquement
+                    // Ajouter écouteur de mouvement pour dessiner le carré
+                    document.addEventListener('mousemove', handleSelectionMove);
+                } else {
+                    // Deuxième clic : terminer la zone et proposer la suppression
+                    document.removeEventListener('mousemove', handleSelectionMove);
+                    processBulkDelete(selectionStart, { x, y });
+                    resetSelectionBox();
+                    toggleSelectionMode(); // Quitter le mode automatiquement
+                }
+                return;
             }
+
+            // MODE NORMAL
+            deselectAll(e);
+            clearMultiSelection();
         }
 
         /* Dessine le carré en temps réel */
@@ -1769,10 +1999,394 @@
 
         /* Raccourci Clavier Echap */
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && isSelectionMode) {
-                toggleSelectionMode();
+            if (e.key === 'Escape') {
+                if (isSelectionMode) {
+                    toggleSelectionMode();
+                }
+                if (isPenMode) {
+                    showToast("✏️ Mode Stylo désactivé");
+                    togglePenMode();
+                }
+                if (isMultiSelectMode) {
+                    showToast("⬚ Mode Sélection désactivé");
+                    toggleMultiSelectMode();
+                }
+                // Désélectionner la sélection multiple même si le mode n'est pas actif
+                if (multiSelectedIds.length > 0) {
+                    clearMultiSelection();
+                }
             }
         });
+
+        /* Dessine le carré de sélection multiple en temps réel */
+        function handleMultiSelectionMove(e) {
+            if (!multiSelectStart) return;
+
+            const container = document.getElementById('workspace-container');
+            const rect = container.getBoundingClientRect();
+            const currentX = (e.clientX - rect.left) / currentZoom;
+            const currentY = (e.clientY - rect.top) / currentZoom;
+
+            const box = document.getElementById('selectionBox');
+
+            const width = Math.abs(currentX - multiSelectStart.x);
+            const height = Math.abs(currentY - multiSelectStart.y);
+            const left = Math.min(currentX, multiSelectStart.x);
+            const top = Math.min(currentY, multiSelectStart.y);
+
+            box.style.width = width + 'px';
+            box.style.height = height + 'px';
+            box.style.left = left + 'px';
+            box.style.top = top + 'px';
+        }
+
+        /* Réinitialise le carré de sélection multiple */
+        function resetMultiSelectionBox() {
+            multiSelectStart = null;
+            const box = document.getElementById('selectionBox');
+            box.style.display = 'none';
+            document.removeEventListener('mousemove', handleMultiSelectionMove);
+        }
+
+        /* Sélectionne les équipements dans la zone */
+        function processMultiSelect(start, end) {
+            const minX = Math.min(start.x, end.x);
+            const maxX = Math.max(start.x, end.x);
+            const minY = Math.min(start.y, end.y);
+            const maxY = Math.max(start.y, end.y);
+
+            // Trouver les équipements dont le centre est dans la zone
+            const toSelect = equipments.filter(eq => {
+                const centerX = eq.x + 80; // Largeur approx 160/2
+                const centerY = eq.y + 60; // Hauteur approx 120/2
+                return centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY;
+            });
+
+            if (toSelect.length === 0) {
+                showToast("Aucun équipement dans la zone");
+                return;
+            }
+
+            // Stocker les IDs sélectionnés
+            multiSelectedIds = toSelect.map(eq => eq.id);
+
+            // Appliquer le style visuel
+            document.querySelectorAll('.node').forEach(node => {
+                if (multiSelectedIds.includes(node.id)) {
+                    node.classList.add('multi-selected');
+                } else {
+                    node.classList.remove('multi-selected');
+                }
+            });
+
+            showToast(`✅ ${multiSelectedIds.length} équipement(s) sélectionné(s)\n\nVous pouvez maintenant les déplacer ensemble`);
+        }
+
+        /* Désélectionne tous les équipements en multi-sélection */
+        function clearMultiSelection() {
+            multiSelectedIds = [];
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('multi-selected');
+            });
+        }
+
+        /* Activer/Désactiver le mode sélection multiple */
+        function toggleMultiSelectMode() {
+            isMultiSelectMode = !isMultiSelectMode;
+            const btn = document.getElementById('multiSelectBtn');
+            const body = document.body;
+
+            if (isMultiSelectMode) {
+                // ACTIVER LE MODE SÉLECTION MULTIPLE
+                btn.classList.add('active');
+                body.classList.add('multi-select-mode');
+                showToast("⬚ Mode Sélection : Cliquez 2 fois pour créer une zone de sélection");
+
+                // Désactiver les autres modes
+                if (isSelectionMode) {
+                    toggleSelectionMode();
+                }
+                if (isPenMode) {
+                    togglePenMode();
+                }
+
+                // Désélectionner tout
+                deselectAll();
+                deselectConnection();
+                closeConnectionMenu();
+
+            } else {
+                // DÉSACTIVER LE MODE SÉLECTION MULTIPLE
+                btn.classList.remove('active');
+                body.classList.remove('multi-select-mode');
+                resetMultiSelectionBox();
+            }
+        }
+
+        /* Sélectionner une connexion avec effet visuel */
+        function selectConnection(childId, pathElement, event) {
+            // Désélectionner l'ancienne ligne
+            deselectConnection();
+
+            // Sélectionner la nouvelle ligne
+            selectedConnectionId = childId;
+            selectedConnectionPath = pathElement;
+
+            // Stocker la largeur originale
+            const originalWidth = pathElement.getAttribute("data-original-width") || pathElement.getAttribute("stroke-width");
+            pathElement.setAttribute("data-original-width", originalWidth);
+
+            // Effet visuel de sélection
+            pathElement.setAttribute("stroke-width", parseInt(originalWidth) + 2);  // Plus épais
+            pathElement.style.filter = 'drop-shadow(0 0 6px rgba(0, 122, 255, 0.6))';  // Halo bleu
+
+            // Ouvrir le menu
+            openConnectionMenu(event, childId);
+        }
+
+        /* Désélectionner une connexion */
+        function deselectConnection() {
+            if (selectedConnectionPath) {
+                const originalWidth = selectedConnectionPath.getAttribute("data-original-width");
+                if (originalWidth) {
+                    selectedConnectionPath.setAttribute("stroke-width", originalWidth);
+                }
+                selectedConnectionPath.style.filter = 'none';
+                selectedConnectionPath = null;
+            }
+            selectedConnectionId = null;
+        }
+
+        /* Activer/Désactiver le mode Stylo */
+        function togglePenMode() {
+            isPenMode = !isPenMode;
+            const btn = document.getElementById('penBtn');
+            const body = document.body;
+
+            if (isPenMode) {
+                // ACTIVER LE MODE STYLO
+                btn.classList.add('active');
+                body.style.cursor = 'crosshair';
+                document.getElementById('workspace-container').style.cursor = 'crosshair';
+
+                // Changer le curseur des équipements
+                document.querySelectorAll('.node').forEach(node => {
+                    node.style.cursor = 'crosshair';
+                });
+
+                // Désactiver les autres modes
+                if (isSelectionMode) {
+                    toggleSelectionMode();
+                }
+                if (isMultiSelectMode) {
+                    toggleMultiSelectMode();
+                }
+
+                // Désélectionner tout
+                deselectAll();
+                deselectConnection();
+                closeConnectionMenu();
+                clearMultiSelection();
+                penFirstEquipment = null;
+
+                showToast("✏️ Mode Stylo activé : Cliquez sur l'équipement PARENT puis sur l'ENFANT");
+
+            } else {
+                // DÉSACTIVER LE MODE STYLO
+                btn.classList.remove('active');
+                body.style.cursor = 'default';
+                document.getElementById('workspace-container').style.cursor = 'default';
+
+                // Restaurer le curseur des équipements
+                document.querySelectorAll('.node').forEach(node => {
+                    node.style.cursor = 'grab';
+                });
+
+                penFirstEquipment = null;
+
+                // Retirer le highlight du parent sélectionné
+                document.querySelectorAll('.node').forEach(node => {
+                    node.style.border = '';
+                    node.style.boxShadow = '';
+                });
+            }
+        }
+
+        /* Gérer les clics en mode Stylo */
+        function handlePenModeClick(equipmentId) {
+            if (!penFirstEquipment) {
+                // PREMIER CLIC : Sélectionner le parent
+                penFirstEquipment = equipmentId;
+
+                const parentEq = equipments.find(e => e.id === equipmentId);
+                showToast(`✅ Parent sélectionné : ${parentEq.deviceName}\n\nCliquez maintenant sur l'équipement ENFANT`);
+
+                // Highlight visuel du parent (bordure verte)
+                const parentNode = document.getElementById(equipmentId);
+                if (parentNode) {
+                    parentNode.style.border = '4px solid #34C759';
+                    parentNode.style.boxShadow = '0 0 0 3px rgba(52, 199, 89, 0.3)';
+                }
+
+            } else {
+                // DEUXIÈME CLIC : Créer la connexion
+                const parentId = penFirstEquipment;
+                const childId = equipmentId;
+
+                // Vérifier qu'on ne connecte pas un équipement à lui-même
+                if (parentId === childId) {
+                    showToast("❌ Impossible de connecter un équipement à lui-même");
+
+                    // Retirer le highlight
+                    const parentNode = document.getElementById(parentId);
+                    if (parentNode) {
+                        parentNode.style.border = '';
+                        parentNode.style.boxShadow = '';
+                    }
+
+                    penFirstEquipment = null;
+                    return;
+                }
+
+                // Créer la connexion
+                const childEq = equipments.find(e => e.id === childId);
+                if (childEq) {
+                    // Si l'enfant avait déjà un parent, demander confirmation
+                    if (childEq.parent) {
+                        const parentEq = equipments.find(e => e.id === parentId);
+                        const oldParentEq = equipments.find(e => e.id === childEq.parent);
+
+                        const confirmChange = confirm(
+                            `${childEq.deviceName} est déjà connecté à ${oldParentEq?.deviceName || 'un équipement'}.\n\nVoulez-vous le reconnecter à ${parentEq.deviceName} ?`
+                        );
+
+                        if (!confirmChange) {
+                            // Retirer le highlight
+                            const parentNode = document.getElementById(parentId);
+                            if (parentNode) {
+                                parentNode.style.border = '';
+                                parentNode.style.boxShadow = '';
+                            }
+                            penFirstEquipment = null;
+                            return;
+                        }
+                    }
+
+                    // Définir le nouveau parent avec style Ethernet par défaut
+                    childEq.parent = parentId;
+
+                    // Si pas de style défini, créer un style Ethernet par défaut
+                    if (!childEq.connectionStyle) {
+                        childEq.connectionStyle = {
+                            type: 'ethernet',
+                            color: '#007AFF',
+                            width: 2,
+                            dasharray: ''
+                        };
+                    }
+
+                    const parentEq = equipments.find(e => e.id === parentId);
+                    showToast(`✅ Connexion créée :\n${parentEq.deviceName} → ${childEq.deviceName}`);
+
+                    // Retirer le highlight
+                    const parentNode = document.getElementById(parentId);
+                    if (parentNode) {
+                        parentNode.style.border = '';
+                        parentNode.style.boxShadow = '';
+                    }
+
+                    markAsUnsaved();
+                    render();
+
+                    // Réinitialiser pour permettre une nouvelle connexion sans désactiver le mode
+                    penFirstEquipment = null;
+                }
+            }
+        }
+
+        /* Ouvrir le menu contextuel de connexion */
+        function openConnectionMenu(event, childId) {
+            selectedConnectionId = childId;
+
+            const menu = document.getElementById('connectionMenu');
+            const container = document.getElementById('workspace-container');
+            const rect = container.getBoundingClientRect();
+
+            // Position du clic dans le conteneur (tenant compte du zoom)
+            const x = (event.clientX - rect.left) / currentZoom;
+            const y = (event.clientY - rect.top) / currentZoom;
+
+            // Afficher le menu au-dessus du point cliqué
+            menu.style.display = 'block';
+            menu.style.left = (x - 90) + 'px';  // Centré (menu width ≈ 180px)
+            menu.style.top = (y - 70) + 'px';   // Au-dessus
+
+            // Fermer le menu si on clique ailleurs
+            setTimeout(() => {
+                document.addEventListener('click', closeConnectionMenu, { once: true });
+            }, 100);
+        }
+
+        /* Fermer le menu contextuel */
+        function closeConnectionMenu() {
+            document.getElementById('connectionMenu').style.display = 'none';
+            deselectConnection();
+        }
+
+        /* Appliquer le style de connexion */
+        function setConnectionStyle(styleType) {
+            if (!selectedConnectionId) return;
+
+            const eq = equipments.find(e => e.id === selectedConnectionId);
+            if (!eq) return;
+
+            // Définir le style selon le type
+            const styles = {
+                ethernet: {
+                    type: 'ethernet',
+                    color: '#007AFF',
+                    width: 2,
+                    dasharray: ''
+                },
+                radio: {
+                    type: 'radio',
+                    color: '#007AFF',
+                    width: 2,
+                    dasharray: '5,5'
+                },
+                fiber: {
+                    type: 'fiber',
+                    color: '#FFD700',  // Jaune/or
+                    width: 3,
+                    dasharray: ''
+                }
+            };
+
+            eq.connectionStyle = styles[styleType];
+
+            markAsUnsaved();
+            render();
+            closeConnectionMenu();
+            showToast(`✅ Connexion modifiée : ${styleType === 'ethernet' ? 'Ethernet' : styleType === 'radio' ? 'Radio' : 'Fibre'}`);
+        }
+
+        /* Supprimer la connexion */
+        function deleteConnection() {
+            if (!selectedConnectionId) return;
+
+            if (confirm("Supprimer cette connexion ?\n\nL'équipement deviendra indépendant.")) {
+                const eq = equipments.find(e => e.id === selectedConnectionId);
+                if (eq) {
+                    eq.parent = null;  // Déconnecter
+                    delete eq.connectionStyle;  // Réinitialiser le style
+
+                    markAsUnsaved();
+                    render();
+                    closeConnectionMenu();
+                    showToast("🔗 Connexion supprimée");
+                }
+            }
+        }
 
         window.onload = render;
     </script>
