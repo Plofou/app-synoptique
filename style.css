@@ -1293,3 +1293,8 @@ body.dark-mode .floating-toolbar button {
     background: #3a3a3c;
     color: white;
 }
+
+/* Supposons que votre bouton ait une classe spécifique ou un ID */
+.bouton-poubelle {
+    margin-left: auto; /* Cela pousse l'élément (et ceux qui suivent) tout à droite */
+}
