@@ -1,492 +1,199 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <title>Synoptique Technicien</title>
+    <link rel="icon" href="assets/myco.png" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
-    <style>
-        :root {
-            --primary: #007AFF;
-            --danger: #FF3B30;
-            --bg: #F2F2F7;
-            --card: #FFFFFF;
-            --border: #C6C6C8;
-            --success: #34C759;
-            --warning: #FF9500;
-        }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; padding: 0;
-            background-color: var(--bg);
-            height: 100vh;
-            width: 100%;
-            display: flex; flex-direction: column;
-            overflow: hidden;
-            transition: background-color 0.3s;
-        }
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
 
-        /* --- SÉCURITÉ --- */
-        #auth-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #1d1d1f; display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            z-index: 10000; color: white; transition: opacity 0.3s;
-        }
-        .auth-box { background: #2c2c2e; padding: 25px; border-radius: 16px; text-align: center; width: 80%; max-width: 300px; }
-        .auth-input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #444; background: #1c1c1e; color: white; font-size: 1.2rem; text-align: center; box-sizing: border-box; }
+<link rel="stylesheet" href="style.css" />
 
-        /* --- HEADER --- */
-        .header {
-            background-color: var(--card);
-            padding: 12px 20px;
-            display: flex; align-items: center; gap: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            z-index: 50; flex-shrink: 0;
-            transition: background-color 0.3s;
-        }
+<div id="auth-overlay" class="fixed inset-0 flex items-center justify-center overflow-hidden z-[9999]">
 
-        /* Dark Mode Toggle */
-        .dark-mode-toggle { display: flex; align-items: center; gap: 8px; }
-        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 24px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--primary); }
-        input:checked + .slider:before { transform: translateX(26px); }
-        .dark-mode-label { font-size: 18px; }
+  <!-- GRADIENT FOND -->
+  <div class="absolute inset-0 animated-gradient"></div>
 
-        /* Save Status */
-        .save-status {
-            display: flex; align-items: center; gap: 6px; padding: 6px 12px;
-            background: #f0f0f0; border-radius: 20px; font-size: 13px; font-weight: 500; min-width: 110px;
-            transition: all 0.3s;
-        }
-        .save-status.saved { background: #e8f5e9; color: #2e7d32; }
-        .save-status.unsaved { background: #fff3e0; color: #f57c00; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .status-dot { font-size: 12px; }
+  <!-- LOGO AU-DESSUS DU GRADIENT -->
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <img src="assets/myco.png"
+         class="w-[700px] max-w-[80%] opacity-4.5 select-none" />
+  </div>
 
-        /* Header Actions */
-        .header-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  <!-- CONTENU -->
+  <div class="relative z-20 text-center text-white px-6">
 
-        .header-btn-labeled {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 2px; padding: 8px 12px; border: none; border-radius: 8px;
-            background: white; cursor: pointer; transition: all 0.2s; min-width: 70px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .header-btn-labeled:hover { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
-        .header-btn-labeled:active { transform: translateY(0); }
-        .header-btn-labeled.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
-        
-        .btn-icon { font-size: 20px; }
-        .btn-label { font-size: 11px; font-weight: 600; color: #333; }
+    <h1 class="text-5xl md:text-6xl font-light tracking-[0.4em] mb-[280px] animate-title">
+      MYSYNO
+    </h1>
 
-        .save-btn { border: 2px solid var(--success); }
-        .save-btn:hover { background: #f0fdf4; }
-        .open-btn { border: 2px solid var(--primary); }
-        .open-btn:hover { background: #eff6ff; }
-        .export-btn { border: 2px solid var(--warning); }
-        .export-btn:hover { background: #fff7ed; }
-        .add-btn { border: 2px solid var(--primary); }
-        .add-btn:hover { background: #eff6ff; }
+    <div class="flex flex-col gap-6 w-72 mx-auto">
 
-        .company-logo {
-            height: 50px; 
-            width: auto;
-            margin-left: 20px;
-            margin-right: auto; 
-            object-fit: contain;
-            transition: transform 0.2s;
-        }
-        .company-logo:hover { transform: scale(1.05); }
+      <input
+        type="password"
+        id="pass-field"
+        maxlength="4"
+        placeholder="Code"
+        class="w-full py-3 rounded-2xl text-center text-white
+               bg-white/10 backdrop-blur-md
+               outline-none transition duration-300
+               focus:bg-white/20 focus:shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+      />
 
-        .site-name-input {
-            flex: 0 0 auto; width: 250px; padding: 10px 15px;
-            border: 2px solid var(--primary); border-radius: 8px;
-            font-size: 15px; background: white; margin-left: 0;
-        }
+      <button onclick="checkPass()"
+        class="bg-white text-black font-semibold py-3 rounded-2xl 
+               transition duration-300 hover:scale-105 active:scale-95">
+        VALIDER
+      </button>
 
-        /* --- DARK MODE STYLES --- */
-        body.dark-mode { background-color: #1a1a1a; color: #e0e0e0; height: 100vh; }
-        body.dark-mode .header { background-color: #2c2c2c; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-        body.dark-mode .site-name-input { background: #3a3a3a; color: white; border-color: #555; }
-        body.dark-mode #workspace-container { background-color: #1a1a1a; background-image: radial-gradient(#444 1px, transparent 1px); }
-        body.dark-mode .node { background: #2c2c2c; border-color: #555; color: #e0e0e0; }
-        body.dark-mode .node .device-name { color: #e0e0e0; }
-        body.dark-mode .modal-content { background: #2c2c2c; color: #e0e0e0; }
-        body.dark-mode .form-group input, body.dark-mode .form-group select { background: #3a3a3a; color: white; border-color: #555; }
-        body.dark-mode .header-btn-labeled { background: #3a3a3a; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
-        body.dark-mode .btn-label { color: #e0e0e0; }
-        body.dark-mode .save-btn:hover { background: #1b3320; }
-        body.dark-mode .open-btn:hover, body.dark-mode .add-btn:hover { background: #1a273b; }
-        body.dark-mode .export-btn:hover { background: #3b2a1a; }
-        body.dark-mode .save-status { background: #333; color: #aaa; }
-        body.dark-mode .save-status.saved { background: #1b3320; color: #4caf50; }
-        body.dark-mode .save-status.unsaved { background: #3b2a1a; color: #ff9800; }
-        body.dark-mode .company-logo { filter: brightness(0.9); }
-        body.dark-mode .zoom-indicator { background: rgba(44, 44, 44, 0.95); color: #e0e0e0; }
-        body.dark-mode .position-indicator { background: rgba(50, 50, 50, 0.9); color: #e0e0e0; }
+      <div id="authLoader"
+        class="hidden w-10 h-10 mx-auto border-4 border-white 
+               border-t-transparent rounded-full animate-spin">
+      </div>
 
-        /* HP simplifié - CSS */
-        #hpGroup {
-            background: #F0F9FF;
-            padding: 15px;
-            border-radius: 12px;
-            border: 2px solid #3B82F6;
-        }
-        .hp-name-field {
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .hp-name-field label {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #1E40AF;
-            min-width: 50px;
-        }
-        .hp-name-field input {
-            flex: 1;
-            padding: 10px;
-            border: 2px solid #93C5FD;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            background: white;
-            font-weight: bold;
-            box-sizing: border-box;
-        }
-        .hp-name-field input:focus {
-            outline: none;
-            border-color: #3B82F6;
-            background: #F0F9FF;
-        }
-        body.dark-mode #hpGroup {
-            background: #1e3a5f;
-            border-color: #3b82f6;
-        }
-        body.dark-mode .hp-name-field label {
-            color: #60a5fa;
-        }
-        body.dark-mode .hp-name-field input {
-            background: #3a3a3a;
-            color: white;
-            border-color: #3b82f6;
-        }
-
-        /* --- WORKSPACE & ZOOM --- */
-        #workspace-wrapper { 
-            flex: 1; 
-            position: relative; 
-            overflow: auto; 
-            -webkit-overflow-scrolling: touch; 
-            z-index: 1; 
-            background-color: var(--bg);
-            transition: background-color 0.3s;
-        }
-        
-        #workspace-container { 
-            position: relative; 
-            width: 10000px; 
-            height: 10000px; 
-            background-image: radial-gradient(#ccc 1px, transparent 1px); 
-            background-size: 30px 30px; 
-            touch-action: none; 
-            transform-origin: 0 0; 
-            transition: transform 0.1s ease-out; 
-        }
-        
-        #connections-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
-
-        /* --- BOITIER EQUIPEMENT --- */
-        .node {
-            position: absolute; background: var(--card); border: 2px solid #ddd; border-radius: 10px;
-            padding: 10px; width: 160px; display: flex; flex-direction: column; align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 2; user-select: none; 
-            touch-action: none; 
-            height: auto; 
-            min-height: 120px;
-            transition: background-color 0.3s, border-color 0.3s;
-        }
-        .node.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.2); z-index: 10; }
-        .node .icon { margin-bottom: 5px; height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        .node-image { max-width: 90%; max-height: 100%; object-fit: contain; }
-        .node .device-name { font-weight: 700; font-size: 0.9rem; text-align: center; margin-top: 5px; color: #1d1d1f; }
-        .node .ip-addr { font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; margin: 2px 0; }
-        .node .loc { font-size: 0.75rem; color: #86868b; text-align: center; font-style: italic; }
-
-        .quick-add-btn {
-            position: absolute; top: -12px; right: -12px;
-            width: 28px; height: 28px;
-            background: #007AFF; color: white;
-            border-radius: 50%; display: none; align-items: center; justify-content: center;
-            font-size: 20px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 101; transition: transform 0.1s;
-        }
-        .quick-add-btn:hover { transform: scale(1.1); }
-        .quick-add-btn:active { transform: scale(0.95); }
-
-        .quick-delete-btn {
-            position: absolute; top: -12px; left: -12px;
-            width: 28px; height: 28px;
-            background: #FF3B30; color: white;
-            border-radius: 50%; display: none; align-items: center; justify-content: center;
-            font-size: 18px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 101; transition: transform 0.1s;
-        }
-        .quick-delete-btn:hover { transform: scale(1.1); background: #E62E25; }
-        .quick-delete-btn:active { transform: scale(0.95); }
-
-        .node.selected .quick-add-btn { display: flex; }
-        .node.selected .quick-delete-btn { display: flex; }
-
-        .photo-section {
-            position: relative; width: 100%; height: 100px; margin-bottom: 8px;
-            border-radius: 8px 8px 4px 4px; overflow: hidden; background-color: #eee; cursor: pointer;
-        }
-
-        .field-photo { width: 100%; height: 100%; object-fit: cover; }
-
-        .photo-badge {
-            position: absolute; top: 5px; right: 5px;
-            background: rgba(0, 0, 0, 0.6); color: white;
-            padding: 3px 6px; border-radius: 4px; font-size: 14px; pointer-events: none;
-        }
-
-        .position-indicator {
-            position: fixed; 
-            bottom: 100px; 
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7); color: white;
-            padding: 8px 12px; border-radius: 6px;
-            font-family: monospace; font-size: 12px;
-            z-index: 300; pointer-events: none;
-        }
-        
-        /* --- UI FLOTTANTE --- */
-        .floating-ui { position: fixed; bottom: 30px; display: flex; align-items: center; z-index: 250; }
-        .floating-ui.modal-open { display: none !important; }
-        .trash-zone { left: 20px; flex-direction: column-reverse; gap: 15px; }
-        .zoom-zone { right: 20px; gap: 10px; flex-direction: column; }
-
-        .fab-btn {
-            width: 55px; height: 55px; border-radius: 50%; border: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 24px;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; transition: transform 0.1s;
-        }
-        .fab-btn:active { transform: scale(0.95); }
-
-        #photo-btn { background: var(--primary); color: white; display: none; margin-bottom: 5px;}
-        #photo-btn.show { display: flex; animation: popIn 0.2s; }
-
-        .zoom-btn { background: white; color: #333; font-weight: bold; font-size: 28px; }
-
-        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
-
-        /* --- MODALE AJOUT --- */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; z-index: 200; }
-        .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; padding-bottom: 40px; animation: slideUp 0.3s ease-out; max-height: 85vh; overflow-y: auto; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-        /* MODAL VISUALISATION PHOTO */
-        #photo-modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center;
-            z-index: 300; flex-direction: column;
-        }
-        #full-photo { max-width: 95%; max-height: 80vh; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        .photo-controls { margin-top: 20px; display: flex; gap: 20px; }
-        .icon-btn { background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 24px; cursor: pointer; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
-
-        /* CORRIGÉ : CSS manquant ajouté */
-        .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
-        .form-group input, .form-group select { 
-            width: 100%; padding: 12px; border: 1px solid #ddd; 
-            border-radius: 10px; font-size: 1rem; box-sizing: border-box; background: #FAFAFA; 
-        }
-        
-        .btn-full { 
-            width: 100%; padding: 14px; border-radius: 12px; border: none; 
-            font-size: 1rem; font-weight: bold; margin-top: 10px; cursor: pointer; 
-        }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-cancel { background: #E5E5EA; color: black; margin-top: 5px; }
-        
-        .toast { 
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); 
-            background: #333; color: white; padding: 10px 20px; border-radius: 20px; 
-            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; 
-        }
-
-        .zoom-indicator {
-            position: fixed;
-            bottom: 240px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            color: #333;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            z-index: 250;
-            min-width: 50px;
-            text-align: center;
-        }
-
-        /* Style du bouton spécifique "Zone Suppr." */
-        .del-zone-btn { border: 2px solid var(--danger); color: var(--danger); }
-        .del-zone-btn:hover { background: #fff1f2; }
-        .del-zone-btn.active { background: var(--danger); color: white; }
-        .del-zone-btn.active .btn-label { color: white; }
-
-        /* Ajustement pour le mode sombre */
-        body.dark-mode .del-zone-btn:hover { background: #3b1a1a; }
-
-        /* Style du bouton Sélection Multiple */
-        .multi-select-btn { border: 2px solid #5856D6; color: #5856D6; }
-        .multi-select-btn:hover { background: #f0f0ff; }
-        .multi-select-btn.active { background: #5856D6; color: white; }
-        .multi-select-btn.active .btn-label { color: white; }
-
-        /* Ajustement pour le mode sombre */
-        body.dark-mode .multi-select-btn:hover { background: #2a2a4a; }
-
-        /* Style du bouton Stylo */
-        .pen-btn { border: 2px solid var(--success); color: var(--success); }
-        .pen-btn:hover { background: #f0fdf4; }
-        .pen-btn.active { background: var(--success); color: white; }
-        .pen-btn.active .btn-label { color: white; }
-
-        /* Ajustement pour le mode sombre */
-        body.dark-mode .pen-btn:hover { background: #1b3320; }
-
-        /* Équipements sélectionnés en multi-sélection */
-        .node.multi-selected {
-            border-color: #5856D6 !important;
-            box-shadow: 0 0 0 3px rgba(88, 86, 214, 0.3) !important;
-            z-index: 15;
-        }
-
-        /* Curseur en croix quand le mode sélection multiple est actif */
-        body.multi-select-mode #workspace-container {
-            cursor: crosshair !important;
-        }
-
-        /* Le carré de sélection visuel */
-        #selectionBox {
-            position: absolute;
-            background-color: rgba(255, 59, 48, 0.2);
-            border: 2px dashed #FF3B30;
-            display: none;
-            pointer-events: none; /* Important pour laisser passer les clics */
-            z-index: 1000;
-        }
-
-        /* Curseur en croix quand le mode est actif */
-        body.selection-mode #workspace-container {
-            cursor: crosshair !important;
-        }
-
-        /* Menu contextuel de connexion */
-        .connection-option:hover {
-            background-color: #f5f5f5;
-        }
-
-        body.dark-mode .connection-option:hover {
-            background-color: #3a3a3a;
-        }
-
-        body.dark-mode #connectionMenu > div {
-            background: #2c2c2c !important;
-            color: #e0e0e0;
-        }
-    </style>
-</head>
-<body>
-
-    <div id="auth-overlay">
-        <div class="auth-box">
-            <h3>🔐 Accès Technicien</h3>
-            <input type="tel" id="pass-field" class="auth-input" placeholder="Code" maxlength="4">
-            <button class="btn-full btn-primary" onclick="checkPass()">Valider</button>
-        </div>
     </div>
+  </div>
+</div>
 
-    <input type="file" id="fileLoader" style="display:none" accept=".json" onchange="loadProject(this)">
-    <input type="file" id="photoInput" style="display:none" accept="image/*" onchange="processPhoto(this)">
+
+
+    <input
+      type="file"
+      id="fileLoader"
+      style="display: none"
+      accept=".json"
+      onchange="loadProject(this)"
+    />
+    <input
+      type="file"
+      id="photoInput"
+      style="display: none"
+      accept="image/*"
+      onchange="processPhoto(this)"
+    />
 
     <div class="header">
-        <div class="dark-mode-toggle">
-            <label class="switch">
-                <input type="checkbox" id="darkModeSwitch" onchange="toggleDarkMode()">
-                <span class="slider"></span>
-            </label>
-            <span class="dark-mode-label">🌙</span>
-        </div>
+      <div class="dark-mode-toggle">
+        <label class="switch">
+          <input
+            type="checkbox"
+            id="darkModeSwitch"
+            onchange="toggleDarkMode()"
+          />
+          <span class="slider"></span>
+        </label>
+        <span class="dark-mode-label">🌙</span>
+      </div>
 
-        <div class="save-status saved" id="saveStatus">
-            <span class="status-dot">🟢</span>
-            <span class="status-text">Sauvegardé</span>
-        </div>
+      <div class="save-status saved" id="saveStatus">
+        <span class="status-dot">🟢</span>
+        <span class="status-text">Sauvegardé</span>
+      </div>
 
-        <div class="header-actions">
-            <button class="header-btn-labeled save-btn" onclick="saveProject()" title="Sauvegarder">
-                <span class="btn-icon">💾</span>
-                <span class="btn-label">Sauver</span>
-            </button>
-            
-            <button class="header-btn-labeled open-btn" onclick="triggerLoad()" title="Ouvrir">
-                <span class="btn-icon">📂</span>
-                <span class="btn-label">Ouvrir</span>
-            </button>
-            
-            <button class="header-btn-labeled export-btn disabled" id="btnDownload" onclick="downloadPDF()" title="Exporter en PDF">
-                <span class="btn-icon">⬇</span>
-                <span class="btn-label">Export PDF</span>
-            </button>
-            
-            <button class="header-btn-labeled add-btn" onclick="openAddModal()" title="Ajouter équipement">
-                <span class="btn-icon">+</span>
-                <span class="btn-label">Ajouter</span>
-            </button>
+      <div class="header-actions">
+        <button
+          class="header-btn-labeled save-btn"
+          onclick="saveProject()"
+          title="Sauvegarder"
+        >
+          <span class="btn-icon">💾</span>
+          <span class="btn-label">Sauver</span>
+        </button>
 
-            <button class="header-btn-labeled del-zone-btn" id="delZoneBtn" onclick="toggleSelectionMode()" title="Supprimer une zone">
-                <span class="btn-icon">⛝</span>
-                <span class="btn-label">Zone Suppr.</span>
-            </button>
+        <button
+          class="header-btn-labeled open-btn"
+          onclick="triggerLoad()"
+          title="Ouvrir"
+        >
+          <span class="btn-icon">📂</span>
+          <span class="btn-label">Ouvrir</span>
+        </button>
 
-            <button class="header-btn-labeled multi-select-btn" id="multiSelectBtn" onclick="toggleMultiSelectMode()" title="Sélectionner plusieurs équipements">
-                <span class="btn-icon">⬚</span>
-                <span class="btn-label">Zone Sélect.</span>
-            </button>
+        <button
+          class="header-btn-labeled export-btn disabled"
+          id="btnDownload"
+          onclick="downloadPDF()"
+          title="Exporter en PDF"
+        >
+          <span class="btn-icon">⬇</span>
+          <span class="btn-label">Export PDF</span>
+        </button>
 
-            <button class="header-btn-labeled pen-btn" id="penBtn" onclick="togglePenMode()" title="Reconnecter des équipements">
-                <span class="btn-icon">✏️</span>
-                <span class="btn-label">Stylo</span>
-            </button>
-        </div>
+        <button
+          class="header-btn-labeled add-btn"
+          onclick="openAddModal()"
+          title="Ajouter équipement"
+        >
+          <span class="btn-icon">+</span>
+          <span class="btn-label">Ajouter</span>
+        </button>
 
-        <img src="myco.png" alt="MyConnect" class="company-logo">
+        <button
+          class="header-btn-labeled del-zone-btn"
+          id="delZoneBtn"
+          onclick="toggleSelectionMode()"
+          title="Supprimer une zone"
+        >
+          <span class="btn-icon">⛝</span>
+          <span class="btn-label">Zone Suppr.</span>
+        </button>
 
-        <input type="text" id="siteName" class="site-name-input" placeholder="Nom du site *" oninput="checkInput()">
+        <button
+          class="header-btn-labeled multi-select-btn"
+          id="multiSelectBtn"
+          onclick="toggleMultiSelectMode()"
+          title="Sélectionner plusieurs équipements"
+        >
+          <span class="btn-icon">⬚</span>
+          <span class="btn-label">Zone Sélect.</span>
+        </button>
+
+        <button
+          class="header-btn-labeled pen-btn"
+          id="penBtn"
+          onclick="togglePenMode()"
+          title="Reconnecter des équipements"
+        >
+          <span class="btn-icon">✏️</span>
+          <span class="btn-label">Liens</span>
+        </button>
+      </div>
+
+      <input
+        type="text"
+        id="siteName"
+        class="site-name-input"
+        placeholder="Nom du site *"
+        oninput="checkInput()"
+      />
     </div>
 
     <div class="floating-ui trash-zone">
-        <button class="fab-btn" id="photo-btn" onclick="triggerPhotoUpload()">📷</button>
+      <button class="fab-btn" id="photo-btn" onclick="triggerPhotoUpload()">
+        📷
+      </button>
     </div>
 
     <div class="floating-ui zoom-zone">
-        <button class="fab-btn zoom-btn" onclick="updateZoom(0.1)">+</button>
-        <button class="fab-btn zoom-btn" style="font-size:20px;" onclick="resetZoom()">⌂</button>
-        <button class="fab-btn zoom-btn" onclick="updateZoom(-0.1)">-</button>
+      <button class="fab-btn zoom-btn" onclick="updateZoom(0.1)">+</button>
+      <button
+        class="fab-btn zoom-btn"
+        style="font-size: 20px"
+        onclick="resetZoom()"
+      >
+        ⌂
+      </button>
+      <button class="fab-btn zoom-btn" onclick="updateZoom(-0.1)">-</button>
     </div>
 
     <div class="zoom-indicator" id="zoomIndicator">100%</div>
@@ -494,1901 +201,291 @@
     <div class="position-indicator" id="positionIndicator">X: 0 | Y: 0</div>
 
     <div id="workspace-wrapper">
-        <div id="workspace-container" onclick="handleWorkspaceClick(event)">
-            <svg id="connections-layer"></svg>
-            <div id="selectionBox"></div>
-        </div>
+      <div id="workspace-container" onmousedown="handleWorkspaceMouseDown(event)">
+        <svg id="connections-layer"></svg>
+        <div id="selectionBox"></div>
+      </div>
     </div>
 
     <div class="modal-overlay" id="addModal">
-        <div class="modal-content">
-            <h3 id="modalTitle">Nouvel Équipement</h3>
-            <div class="form-group">
-                <label>Type d'appareil</label>
-                <select id="newType" onchange="updateFormFields(this.value)">
-                    <option value="routeur">Routeur Mikrotik 📶</option>
-                    <option value="switch">Switch 🔌</option>
-                    <option value="nvr">NVR 📼</option>
-                    <option value="bullet">Caméra Bullet 📹</option>
-                    <option value="dome">Caméra Dôme 🎥</option>
-                    <option value="box">Box / Internet 🌐</option>
-                    <option value="ecran">Écran (PC) 🖥️</option>
-                    <option value="radio">Ponts Radios 📡</option>
-                    <option value="ampli">Ampli Audio 📢</option>
-                    <option value="pupitre">Pupitre Micro 🎤</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="radioModeGroup" style="display:none;">
-                <label>Mode</label>
-                <select id="radioMode">
-                    <option value="couple">Couple PE/PR (automatique)</option>
-                    <option value="pe">Point Émetteur (PE) seul</option>
-                    <option value="pr">Point Récepteur (PR) seul</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="radioCoupleQuantityGroup" style="display:none;">
-                <label>Nombre de couples à créer</label>
-                <select id="radioCoupleQuantity">
-                    <option value="1">1 couple (Standard)</option>
-                    <option value="2">2 couples</option>
-                    <option value="3">3 couples</option>
-                    <option value="4">4 couples</option>
-                    <option value="5">5 couples</option>
-                    <option value="10">10 couples</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="quantityGroup" style="display:none;">
-                <label>Quantité à ajouter</label>
-                <select id="newQuantity">
-                    <option value="1">1 (Standard)</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="hpGroup" style="display:none;">
-                <label>🔊 Haut-Parleurs (HP) connectés</label>
-                
-                <div style="margin-bottom: 10px;">
-                    <label style="font-size: 0.85rem; color: #666;">Nombre de HP (1 à 4)</label>
-                    <select id="hpCount" onchange="updateHPFields()" 
-                            style="width: 100%; padding: 10px; border: 2px solid #007AFF; border-radius: 8px; font-size: 1rem; background: #EFF6FF; font-weight: bold;">
-                        <option value="1">1 HP</option>
-                        <option value="2">2 HP</option>
-                        <option value="3">3 HP</option>
-                        <option value="4">4 HP</option>
-                    </select>
-                </div>
-                
-                <div style="background: #FFF7ED; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #F59E0B;">
-                    <small style="color: #92400E; font-size: 0.85rem;">
-                        ℹ️ Les HP héritent de la localisation de l'ampli (connexion analogique)
-                    </small>
-                </div>
-                
-                <div id="hpNamesContainer"></div>
-            </div>
-            
-            <div class="form-group">
-                <label>Nom / Réf</label>
-                <div id="nameFieldContainer">
-                    <input type="text" id="newDeviceName" placeholder="Ex: Switch-RDC">
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>Adresse IP</label>
-                <div id="ipFieldContainer">
-                    <input type="text" id="newIP" placeholder="Ex: 192.168.1.10">
-                </div>
-            </div>
-
-            <div class="form-group" id="locationPRGroup" style="display:none;">
-                <label>Localisation PR</label>
-                <input type="text" id="newLocationPR" placeholder="Ex: Toit bâtiment B">
-            </div>
-
-            <div class="form-group" id="locationGroup">
-                <label id="locationLabel">Localisation</label>
-                <input type="text" id="newLocation" placeholder="Ex: Baie de brassage">
-            </div>
-
-            <div class="form-group"><label>Connecté à</label><select id="newParent"><option value="">-- Racine --</option></select></div>
-            <button id="modalActionBtn" class="btn-full btn-primary" onclick="addEquipment()">Ajouter</button>
-            <button class="btn-full btn-cancel" onclick="closeAddModal()">Annuler</button>
+      <div class="modal-content">
+        <h3 id="modalTitle">Nouvel Équipement</h3>
+        <div class="form-group">
+          <label>Type d'appareil</label>
+          <select id="newType" onchange="updateFormFields(this.value)">
+            <option value="routeur">Routeur Mikrotik 📶</option>
+            <option value="switch">Switch 🔌</option>
+            <option value="nvr">NVR 📼</option>
+            <option value="bullet">Caméra Bullet 📹</option>
+            <option value="dome">Caméra Dôme 🎥</option>
+            <option value="box">Box / Internet 🌐</option>
+            <option value="ecran">Écran (PC) 🖥️</option>
+            <option value="radio">Ponts Radios 📡</option>
+            <option value="ampli">Ampli Audio 📢</option>
+            <option value="pupitre">Pupitre Micro 🎤</option>
+          </select>
         </div>
+
+        <div class="form-group" id="radioModeGroup" style="display: none">
+          <label>Mode</label>
+          <select id="radioMode">
+            <option value="couple">Couple PE/PR (automatique)</option>
+            <option value="pe">Point Émetteur (PE) seul</option>
+            <option value="pr">Point Récepteur (PR) seul</option>
+          </select>
+        </div>
+
+        <div
+          class="form-group"
+          id="radioCoupleQuantityGroup"
+          style="display: none"
+        >
+          <label>Nombre de couples à créer</label>
+          <select id="radioCoupleQuantity">
+            <option value="1">1 couple (Standard)</option>
+            <option value="2">2 couples</option>
+            <option value="3">3 couples</option>
+            <option value="4">4 couples</option>
+            <option value="5">5 couples</option>
+            <option value="10">10 couples</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="quantityGroup" style="display: none">
+          <label>Quantité à ajouter</label>
+          <select id="newQuantity">
+            <option value="1">1 (Standard)</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="hpGroup" style="display: none">
+          <label>🔊 Haut-Parleurs (HP) connectés</label>
+
+          <div style="margin-bottom: 10px">
+            <label style="font-size: 0.85rem; color: #666"
+              >Nombre de HP (1 à 4)</label
+            >
+            <select
+              id="hpCount"
+              onchange="updateHPFields()"
+              style="
+                width: 100%;
+                padding: 10px;
+                border: 2px solid #007aff;
+                border-radius: 8px;
+                font-size: 1rem;
+                background: #eff6ff;
+                font-weight: bold;
+              "
+            >
+              <option value="1">1 HP</option>
+              <option value="2">2 HP</option>
+              <option value="3">3 HP</option>
+              <option value="4">4 HP</option>
+            </select>
+          </div>
+
+          <div
+            style="
+              background: #fff7ed;
+              padding: 10px;
+              border-radius: 6px;
+              margin-bottom: 10px;
+              border-left: 3px solid #f59e0b;
+            "
+          >
+            <small style="color: #92400e; font-size: 0.85rem">
+              ℹ️ Les HP héritent de la localisation de l'ampli (connexion
+              analogique)
+            </small>
+          </div>
+
+          <div id="hpNamesContainer"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Nom / Réf</label>
+          <div id="nameFieldContainer">
+            <input
+              type="text"
+              id="newDeviceName"
+              placeholder="Ex: Switch-RDC"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Adresse IP</label>
+          <div id="ipFieldContainer">
+            <input type="text" id="newIP" placeholder="Ex: 192.168.1.10" />
+          </div>
+        </div>
+
+        <div class="form-group" id="locationPRGroup" style="display: none">
+          <label>Localisation PR</label>
+          <input
+            type="text"
+            id="newLocationPR"
+            placeholder="Ex: Toit bâtiment B"
+          />
+        </div>
+
+        <div class="form-group" id="locationGroup">
+          <label id="locationLabel">Localisation</label>
+          <input
+            type="text"
+            id="newLocation"
+            placeholder="Ex: Baie de brassage"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Connecté à</label
+          ><select id="newParent">
+            <option value="">-- Racine --</option>
+          </select>
+        </div>
+        <button
+          id="modalActionBtn"
+          class="btn-full btn-primary"
+          onclick="addEquipment()"
+        >
+          Ajouter
+        </button>
+        <button class="btn-full btn-cancel" onclick="closeAddModal()">
+          Annuler
+        </button>
+      </div>
     </div>
 
     <div id="photo-modal-overlay">
-        <img id="full-photo" src="" alt="Photo équipement">
-        <div class="photo-controls">
-            <button class="icon-btn" onclick="closePhotoViewer()" style="background:rgba(255,255,255,0.3)">✕</button>
-            <button class="icon-btn" onclick="deleteCurrentPhoto()" style="background:rgba(255,59,48,0.6)">🗑️</button>
-        </div>
+      <img id="full-photo" src="" alt="Photo équipement" />
+      <div class="photo-controls">
+        <button
+          class="icon-btn"
+          onclick="closePhotoViewer()"
+          style="background: rgba(255, 255, 255, 0.3)"
+        >
+          ✕
+        </button>
+        <button
+          class="icon-btn"
+          onclick="deleteCurrentPhoto()"
+          style="background: rgba(255, 59, 48, 0.6)"
+        >
+          🗑️
+        </button>
+      </div>
     </div>
 
     <div class="toast" id="toast"></div>
 
-    <div id="connectionMenu" style="display:none; position:absolute; z-index:500;">
-        <div style="background:white; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:8px; min-width:180px;">
-
-            <div class="connection-option" onclick="setConnectionStyle('ethernet')"
-                 style="padding:10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:10px;">
-                <span style="font-size:20px;">🔵</span>
-                <span style="font-size:0.9rem; font-weight:500;">Réseau Ethernet</span>
-            </div>
-
-            <div class="connection-option" onclick="setConnectionStyle('radio')"
-                 style="padding:10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:10px;">
-                <span style="font-size:20px;">📡</span>
-                <span style="font-size:0.9rem; font-weight:500;">Liaison Radio</span>
-            </div>
-
-            <div class="connection-option" onclick="setConnectionStyle('fiber')"
-                 style="padding:10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:10px;">
-                <span style="font-size:20px;">💡</span>
-                <span style="font-size:0.9rem; font-weight:500;">Fibre Optique</span>
-            </div>
-
-            <hr style="margin:8px 0; border:none; border-top:1px solid #eee;">
-
-            <div class="connection-option" onclick="deleteConnection()"
-                 style="padding:10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:10px; color:#FF3B30;">
-                <span style="font-size:20px;">✂️</span>
-                <span style="font-size:0.9rem; font-weight:600;">Supprimer</span>
-            </div>
-
+    <div
+      id="connectionMenu"
+      style="display: none; position: absolute; z-index: 500"
+    >
+      <div
+        style="
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          padding: 8px;
+          min-width: 180px;
+        "
+      >
+        <div
+          class="connection-option"
+          onclick="setConnectionStyle('ethernet')"
+          style="
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          "
+        >
+          <span style="font-size: 20px">🔵</span>
+          <span style="font-size: 0.9rem; font-weight: 500"
+            >Réseau Ethernet</span
+          >
         </div>
+
+        <div
+          class="connection-option"
+          onclick="setConnectionStyle('radio')"
+          style="
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          "
+        >
+          <span style="font-size: 20px">📡</span>
+          <span style="font-size: 0.9rem; font-weight: 500">Liaison Radio</span>
+        </div>
+
+        <div
+          class="connection-option"
+          onclick="setConnectionStyle('fiber')"
+          style="
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          "
+        >
+          <span style="font-size: 20px">💡</span>
+          <span style="font-size: 0.9rem; font-weight: 500">Fibre Optique</span>
+        </div>
+
+        <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee" />
+
+        <div
+          class="connection-option"
+          onclick="reformatConnection()"
+          style="
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #34C759;
+          "
+        >
+          <span style="font-size: 20px">✨</span>
+          <span style="font-size: 0.9rem; font-weight: 600">Mettre en forme</span>
+        </div>
+
+        <div
+          class="connection-option"
+          onclick="deleteConnection()"
+          style="
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ff3b30;
+          "
+        >
+          <span style="font-size: 20px">✂️</span>
+          <span style="font-size: 0.9rem; font-weight: 600">Supprimer</span>
+        </div>
+      </div>
     </div>
-
-    <script>
-        let selectedEquipmentId = null;
-        let currentZoom = 1;
-        let editingEquipmentId = null;
-        let suggestedX = null;
-        let suggestedY = null;
-        let lastSaved = null;
-        let hasUnsavedChanges = false;
-        let isSelectionMode = false;
-        let selectionStart = null;
-        let selectedConnectionId = null;
-        let selectedConnectionPath = null;
-        let isPenMode = false;
-        let penFirstEquipment = null;
-        let isMultiSelectMode = false;
-        let multiSelectedIds = [];
-        let multiSelectStart = null;
-
-        const presetsByType = {
-            bullet: {
-                names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10', 'CAM11', 'CAM12', 'CAM13', 'CAM14', 'CAM15', 'CAM16', 'CAM17', 'CAM18', 'CAM19', 'CAM20'],
-                ips: ['172.16.0.101', '172.16.0.102', '172.16.0.103', '172.16.0.104', '172.16.0.105', '172.16.0.106', '172.16.0.107', '172.16.0.108', '172.16.0.109', '172.16.0.110', '172.16.0.111', '172.16.0.112', '172.16.0.113', '172.16.0.114', '172.16.0.115', '172.16.0.116', '172.16.0.117', '172.16.0.118', '172.16.0.119', '172.16.0.120']
-            },
-            dome: {
-                names: ['CAM1', 'CAM2', 'CAM3', 'CAM4', 'CAM5', 'CAM6', 'CAM7', 'CAM8', 'CAM9', 'CAM10', 'CAM11', 'CAM12', 'CAM13', 'CAM14', 'CAM15', 'CAM16', 'CAM17', 'CAM18', 'CAM19', 'CAM20'],
-                ips: ['172.16.0.101', '172.16.0.102', '172.16.0.103', '172.16.0.104', '172.16.0.105', '172.16.0.106', '172.16.0.107', '172.16.0.108', '172.16.0.109', '172.16.0.110', '172.16.0.111', '172.16.0.112', '172.16.0.113', '172.16.0.114', '172.16.0.115', '172.16.0.116', '172.16.0.117', '172.16.0.118', '172.16.0.119', '172.16.0.120']
-            },
-            switch: {
-                names: ['SWITCH1', 'SWITCH2', 'SWITCH3', 'SWITCH4', 'SWITCH5', 'SWITCH6', 'SWITCH7', 'SWITCH8', 'SWITCH9', 'SWITCH10'],
-                ips: ['172.16.0.200', '172.16.0.201', '172.16.0.202', '172.16.0.203', '172.16.0.204', '172.16.0.205', '172.16.0.206', '172.16.0.207', '172.16.0.208', '172.16.0.209']
-            },
-            nvr: {
-                names: ['NVR1', 'NVR2', 'NVR3'],
-                ips: ['172.16.0.1', '172.16.0.2', '172.16.0.3']
-            },
-            ampli: {
-                names: ['AMPLI1', 'AMPLI2', 'AMPLI3', 'AMPLI4', 'AMPLI5'],
-                ips: ['172.16.0.51', '172.16.0.52', '172.16.0.53', '172.16.0.54', '172.16.0.55']
-            },
-            routeur: {
-                names: ['ROUTEUR1', 'ROUTEUR2'],
-                ips: ['172.16.0.254', '172.16.0.253']
-            }
-        };
-
-        const radioData = {
-            pe: { names: [], ips: [] },
-            pr: { names: [], ips: [] },
-            couples: []
-        };
-
-        for (let i = 1; i <= 19; i++) {
-            const peName = `PE${i}`;
-            const prName = `PR${i}`;
-            let peIpSuffix = (i <= 9) ? (10 + i) : (20 + i); 
-            let prIpSuffix = (i <= 9) ? (20 + i) : (30 + i);
-            let peIp = `172.16.0.${peIpSuffix}`;
-            let prIp = `172.16.0.${prIpSuffix}`;
-            radioData.pe.names.push(peName);
-            radioData.pe.ips.push(peIp);
-            radioData.pr.names.push(prName);
-            radioData.pr.ips.push(prIp);
-            radioData.couples.push({
-                label: `${peName} + ${prName}`,
-                peName: peName,
-                prName: prName,
-                peIp: peIp,
-                prIp: prIp
-            });
-        }
-
-        function toggleDarkMode() {
-            const isDark = document.getElementById('darkModeSwitch').checked;
-            
-            if (isDark) {
-                document.body.classList.add('dark-mode');
-                document.querySelector('.dark-mode-label').textContent = '☀️';
-                localStorage.setItem('darkMode', 'enabled');
-            } else {
-                document.body.classList.remove('dark-mode');
-                document.querySelector('.dark-mode-label').textContent = '🌙';
-                localStorage.setItem('darkMode', 'disabled');
-            }
-        }
-
-        window.addEventListener('load', function() {
-            const darkMode = localStorage.getItem('darkMode');
-            if (darkMode === 'enabled') {
-                document.getElementById('darkModeSwitch').checked = true;
-                toggleDarkMode();
-            }
-            render(); 
-            updateZoomDisplay(); 
-            
-            setTimeout(function() {
-                const wrapper = document.getElementById('workspace-wrapper');
-                wrapper.scrollLeft = 0;
-                wrapper.scrollTop = 0;
-            }, 100);
-        });
-
-        document.getElementById('workspace-wrapper').addEventListener('scroll', function() {
-            const x = Math.round(this.scrollLeft);
-            const y = Math.round(this.scrollTop);
-            document.getElementById('positionIndicator').textContent = `X: ${x} | Y: ${y}`;
-        });
-
-        function updateSaveStatus(saved) {
-            const statusEl = document.getElementById('saveStatus');
-            
-            if (saved) {
-                statusEl.className = 'save-status saved';
-                statusEl.innerHTML = '<span class="status-dot">🟢</span><span class="status-text">Sauvegardé</span>';
-                hasUnsavedChanges = false;
-                lastSaved = new Date();
-            } else {
-                statusEl.className = 'save-status unsaved';
-                statusEl.innerHTML = '<span class="status-dot">🟡</span><span class="status-text">Non sauvegardé</span>';
-                hasUnsavedChanges = true;
-            }
-        }
-
-        function markAsUnsaved() {
-            updateSaveStatus(false);
-        }
-
-        function checkPass() {
-            if(document.getElementById('pass-field').value === "1234") {
-                document.getElementById('auth-overlay').style.display = 'none';
-            } else { alert("Code incorrect"); }
-        }
-
-        let equipments = [
-            { id: 'root', type: 'routeur', deviceName: 'Routeur Principal', ip: '172.16.0.1', loc: 'Baie de Brassage', x: 100, y: 100, parent: null }
-        ];
-
-        function getIcon(type) {
-            const imageMap = {
-                'routeur': 'routeur.jpg',
-                'switch': 'com1.jpg',
-                'nvr': 'nvr.jpg',
-                'bullet': 'cam1.jpg',
-                'dome': 'cam2.jpg',
-                'box': 'internet.jpg',
-                'ecran': 'pc.jpg',
-                'radio': 'radio.jpg',
-                'ampli': 'ampli.jpg',
-                'hp': 'hp.jpg',
-                'pupitre': 'pupitre.jpg'
-            };
-            return `<img src="${imageMap[type] || 'routeur.jpg'}" class="node-image">`;
-        }
-
-        function saveProject() {
-            const name = document.getElementById('siteName').value || "Synoptique_SansNom";
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(equipments));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", name + ".json");
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-            
-            updateSaveStatus(true); 
-            showToast("💾 Projet sauvegardé !");
-        }
-
-        function triggerLoad() { document.getElementById('fileLoader').click(); }
-
-        function loadProject(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const loadedData = JSON.parse(e.target.result);
-                    if(Array.isArray(loadedData)) {
-                        equipments = loadedData;
-                        render();
-                        let fileName = file.name.replace('.json', '');
-                        if(fileName.includes('Synoptique_')) fileName = fileName.replace('Synoptique_', '');
-                        if(fileName !== 'SansNom') document.getElementById('siteName').value = fileName;
-                        
-                        updateSaveStatus(true); 
-                        showToast("Projet chargé avec succès ! 📂");
-                    } else { alert("Format de fichier invalide."); }
-                } catch(err) { alert("Erreur lors de la lecture du fichier."); }
-            };
-            reader.readAsText(file);
-            input.value = ''; 
-        }
-
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.style.opacity = 1;
-            setTimeout(() => t.style.opacity = 0, 3000);
-        }
-
-        function updateFormFields(type, currentName = '', currentIP = '') {
-            const radioModeGroup = document.getElementById('radioModeGroup');
-            const quantityGroup = document.getElementById('quantityGroup');
-            const hpGroup = document.getElementById('hpGroup');
-
-            document.getElementById('locationLabel').innerText = "Localisation";
-            document.getElementById('locationPRGroup').style.display = 'none';
-
-            radioModeGroup.style.display = 'none';
-            quantityGroup.style.display = 'none';
-            hpGroup.style.display = 'none';
-            document.getElementById('radioCoupleQuantityGroup').style.display = 'none';
-
-            if (type === 'radio') {
-                radioModeGroup.style.display = 'block';
-                updateRadioFields(currentName, currentIP);
-                return;
-            } 
-            else if (type === 'ampli') {
-                hpGroup.style.display = 'block';
-                updateHPFields();
-            }
-            
-            if (!editingEquipmentId && presetsByType[type]) {
-                quantityGroup.style.display = 'block';
-            }
-
-            const presets = presetsByType[type];
-            if (presets) {
-                const nameIndex = presets.names.indexOf(currentName);
-                const isManual = (currentName && nameIndex === -1);
-                if (isManual) renderInputs(currentName, currentIP);
-                else renderSelects(type, currentName, currentIP);
-            } else {
-                renderInputs(currentName, currentIP);
-            }
-        }
-
-        function updateRadioFields(currentName = '', currentIP = '') {
-            const mode = document.getElementById('radioMode').value;
-            const nameContainer = document.getElementById('nameFieldContainer');
-            const ipContainer = document.getElementById('ipFieldContainer');
-
-            if (mode === 'couple') {
-                document.getElementById('locationLabel').innerText = "Localisation PE";
-                document.getElementById('locationPRGroup').style.display = 'block';
-                document.getElementById('newLocationPR').placeholder = "Ex: Toit bâtiment B";
-
-                // NOUVEAU : Afficher le champ quantité
-                document.getElementById('radioCoupleQuantityGroup').style.display = 'block';
-
-                let html = `<select id="newDeviceName">`;
-                html += `<option value="">-- Choisir Couple --</option>`;
-                radioData.couples.forEach((couple, index) => {
-                    html += `<option value="${index}" data-type="couple">${couple.label}</option>`;
-                });
-                html += `<option value="__manual__">Saisie manuelle</option></select>`;
-                nameContainer.innerHTML = html;
-                ipContainer.innerHTML = `<input type="text" id="newIP" value="Automatique (2 IPs)" disabled style="background:#eee; color:#666;">`;
-            } 
-            else if (mode === 'pe') {
-                document.getElementById('locationLabel').innerText = "Localisation";
-                document.getElementById('locationPRGroup').style.display = 'none';
-                document.getElementById('radioCoupleQuantityGroup').style.display = 'none'; // AJOUTÉ
-                renderRadioSelects(radioData.pe, currentName, currentIP);
-            }
-            else if (mode === 'pr') {
-                document.getElementById('locationLabel').innerText = "Localisation";
-                document.getElementById('locationPRGroup').style.display = 'none';
-                document.getElementById('radioCoupleQuantityGroup').style.display = 'none'; // AJOUTÉ
-                renderRadioSelects(radioData.pr, currentName, currentIP);
-            }
-        }
-        
-        /* HP simplifié - Génère champs nom uniquement */
-        function updateHPFields() {
-            const hpCount = parseInt(document.getElementById('hpCount')?.value || 1);
-            const container = document.getElementById('hpNamesContainer');
-            
-            if (!container) return;
-            
-            let html = '';
-            for (let i = 1; i <= hpCount; i++) {
-                html += `
-                    <div class="hp-name-field">
-                        <label>HP${i} :</label>
-                        <input type="text" 
-                               id="hpName${i}" 
-                               placeholder="Ex: HP${i}, HP Entrée, HP Scène..." 
-                               value="HP${i}">
-                    </div>
-                `;
-            }
-            
-            container.innerHTML = html;
-        }
-
-        document.getElementById('radioMode').addEventListener('change', function() {
-            updateRadioFields();
-        });
-
-        function renderRadioSelects(data, nameVal, ipVal) {
-            let nameHtml = `<select id="newDeviceName" onchange="syncRadioIP(this)">`;
-            nameHtml += `<option value="">-- Choisir --</option>`;
-            data.names.forEach((name, index) => {
-                const selected = name === nameVal ? 'selected' : '';
-                nameHtml += `<option value="${name}" data-ip="${data.ips[index]}" ${selected}>${name}</option>`;
-            });
-            nameHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
-            document.getElementById('nameFieldContainer').innerHTML = nameHtml;
-
-            let ipHtml = `<select id="newIP">`;
-            ipHtml += `<option value="">-- Auto --</option>`;
-            data.ips.forEach((ip) => {
-                const selected = ip === ipVal ? 'selected' : '';
-                ipHtml += `<option value="${ip}" ${selected}>${ip}</option>`;
-            });
-            ipHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
-            document.getElementById('ipFieldContainer').innerHTML = ipHtml;
-
-            document.getElementById('newIP').addEventListener('change', function() {
-                if (this.value === '__manual__') renderInputs('', '');
-            });
-        }
-
-        function syncRadioIP(select) {
-            const ipSelect = document.getElementById('newIP');
-            if (select.value === '__manual__') {
-                renderInputs('', '');
-            } else {
-                const selectedOption = select.options[select.selectedIndex];
-                const ip = selectedOption.getAttribute('data-ip');
-                if (ip) ipSelect.value = ip;
-            }
-        }
-
-        function renderInputs(nameVal, ipVal) {
-            document.getElementById('nameFieldContainer').innerHTML = 
-                `<input type="text" id="newDeviceName" placeholder="Ex: Switch-RDC" value="${nameVal}">`;
-            document.getElementById('ipFieldContainer').innerHTML = 
-                `<input type="text" id="newIP" placeholder="Ex: 192.168.1.10" value="${ipVal}">`;
-        }
-
-        function renderSelects(type, nameVal, ipVal) {
-            const presets = presetsByType[type];
-            let nameHtml = `<select id="newDeviceName" onchange="syncIPFromSelect('${type}')">`;
-            nameHtml += `<option value="">-- Choisir --</option>`;
-            presets.names.forEach((name, index) => {
-                const selected = name === nameVal ? 'selected' : '';
-                nameHtml += `<option value="${name}" data-index="${index}" ${selected}>${name}</option>`;
-            });
-            nameHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
-            document.getElementById('nameFieldContainer').innerHTML = nameHtml;
-
-            let ipHtml = `<select id="newIP">`;
-            ipHtml += `<option value="">-- Auto --</option>`;
-            presets.ips.forEach((ip) => {
-                const selected = ip === ipVal ? 'selected' : '';
-                ipHtml += `<option value="${ip}" ${selected}>${ip}</option>`;
-            });
-            ipHtml += `<option value="__manual__">Saisie manuelle...</option></select>`;
-            document.getElementById('ipFieldContainer').innerHTML = ipHtml;
-            
-            document.getElementById('newIP').addEventListener('change', function() {
-                if (this.value === '__manual__') renderInputs('', '');
-            });
-        }
-
-        function syncIPFromSelect(type) {
-            const nameSelect = document.getElementById('newDeviceName');
-            const ipSelect = document.getElementById('newIP');
-            if (nameSelect.value === '__manual__') {
-                renderInputs('', '');
-            } else {
-                const selectedOption = nameSelect.options[nameSelect.selectedIndex];
-                const index = selectedOption.getAttribute('data-index');
-                if (index !== null && presetsByType[type].ips[index]) {
-                    ipSelect.value = presetsByType[type].ips[index];
-                }
-            }
-        }
-
-        function triggerPhotoUpload() { document.getElementById('photoInput').click(); }
-
-        function processPhoto(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.src = e.target.result;
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const MAX_WIDTH = 800;
-                        let width = img.width; let height = img.height;
-                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                        canvas.width = width; canvas.height = height;
-                        ctx.drawImage(img, 0, 0, width, height);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                        if (selectedEquipmentId) {
-                            const eq = equipments.find(e => e.id === selectedEquipmentId);
-                            if (eq) { 
-                                eq.photo = dataUrl; 
-                                markAsUnsaved(); 
-                                render(); 
-                                showToast("Photo ajoutée ! 📷"); 
-                            }
-                        }
-                    }
-                }
-                reader.readAsDataURL(file);
-            }
-            input.value = ''; 
-        }
-
-        function openPhotoViewer(photoData) {
-            document.getElementById('full-photo').src = photoData;
-            document.getElementById('photo-modal-overlay').style.display = 'flex';
-        }
-        function closePhotoViewer() { document.getElementById('photo-modal-overlay').style.display = 'none'; }
-
-        function deleteCurrentPhoto() {
-            if (confirm("Supprimer cette photo ?")) {
-                if (selectedEquipmentId) {
-                    const eq = equipments.find(e => e.id === selectedEquipmentId);
-                    if (eq && eq.photo) { 
-                        delete eq.photo; 
-                        markAsUnsaved(); 
-                        render(); 
-                        closePhotoViewer(); 
-                        showToast("Photo supprimée"); 
-                    }
-                }
-            }
-        }
-
-        function updateZoomDisplay() {
-            const zoomPercent = Math.round(currentZoom * 100);
-            document.getElementById('zoomIndicator').textContent = zoomPercent + '%';
-        }
-
-        function updateZoom(delta) {
-            const newZoom = currentZoom + delta;
-            if (newZoom >= 0.1 && newZoom <= 3.0) { 
-                currentZoom = newZoom;
-                document.getElementById('workspace-container').style.transform = `scale(${currentZoom})`;
-                updateZoomDisplay(); 
-            }
-        }
-
-        function resetZoom() {
-            currentZoom = 1;
-            document.getElementById('workspace-container').style.transform = `scale(1)`;
-            document.getElementById('workspace-wrapper').scrollLeft = 0;
-            document.getElementById('workspace-wrapper').scrollTop = 0;
-            updateZoomDisplay(); 
-        }
-
-        /* SOLUTION SIMPLE ET EFFICACE : Chaque enfant a son propre couloir */
-        function updateConnectionsOnly() {
-            const layer = document.getElementById('connections-layer');
-            layer.innerHTML = ''; 
-            
-            // Grouper les enfants par parent pour leur donner un index unique
-            const childrenByParent = {};
-            equipments.forEach(eq => {
-                if (eq.parent) {
-                    if (!childrenByParent[eq.parent]) {
-                        childrenByParent[eq.parent] = [];
-                    }
-                    childrenByParent[eq.parent].push(eq);
-                }
-            });
-            
-            equipments.forEach(eq => {
-                if (eq.parent) {
-                    const parent = equipments.find(e => e.id === eq.parent);
-                    if (parent) {
-                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        
-                        // Points de départ et arrivée
-                        const startX = parent.x + 80;
-                        const startY = parent.y + 120;
-                        const endX = eq.x + 80;
-                        const endY = eq.y;
-                        
-                        // Trouver l'index de cet enfant parmi les enfants de ce parent
-                        const siblings = childrenByParent[eq.parent];
-                        const childIndex = siblings.findIndex(child => child.id === eq.id);
-                        const totalSiblings = siblings.length;
-                        
-                        // Décalage horizontal unique pour chaque enfant (en "escalier")
-                        const HORIZONTAL_SPACING = 40; // Espacement entre chaque ligne
-                        const horizontalOffset = (childIndex - Math.floor(totalSiblings / 2)) * HORIZONTAL_SPACING;
-                        
-                        // Point intermédiaire décalé horizontalement
-                        const midX = startX + horizontalOffset;
-                        const midY = (startY + endY) / 2;
-                        
-                        // Tracé en "escalier" pour éviter les croisements
-                        const pathData = `M ${startX} ${startY} 
-                                         L ${midX} ${startY + 20}
-                                         L ${midX} ${midY} 
-                                         L ${endX} ${midY} 
-                                         L ${endX} ${endY}`;
-                        
-                        // NOUVEAU : Appliquer le style personnalisé
-                        const style = eq.connectionStyle || {
-                            color: '#007AFF',
-                            width: 2,
-                            dasharray: ''
-                        };
-
-                        // 1. Créer la ligne VISIBLE (style actuel)
-                        const visiblePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        visiblePath.setAttribute("d", pathData);
-                        visiblePath.setAttribute("stroke", style.color);
-                        visiblePath.setAttribute("stroke-width", style.width);
-                        if (style.dasharray) {
-                            visiblePath.setAttribute("stroke-dasharray", style.dasharray);
-                        }
-                        visiblePath.setAttribute("stroke-linejoin", "round");
-                        visiblePath.setAttribute("stroke-linecap", "round");
-                        visiblePath.setAttribute("fill", "none");
-                        visiblePath.style.pointerEvents = 'none';  // Pas cliquable
-                        visiblePath.setAttribute("data-child-id", eq.id);
-                        visiblePath.setAttribute("data-original-width", style.width);
-
-                        // 2. Créer la ligne INVISIBLE de détection (LARGE)
-                        const hitAreaPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        hitAreaPath.setAttribute("d", pathData);
-                        hitAreaPath.setAttribute("stroke", "transparent");
-                        hitAreaPath.setAttribute("stroke-width", "20");  // LARGE pour capter les clics
-                        hitAreaPath.setAttribute("fill", "none");
-                        hitAreaPath.style.pointerEvents = 'stroke';  // Cliquable
-                        hitAreaPath.style.cursor = 'pointer';
-                        hitAreaPath.setAttribute("data-child-id", eq.id);
-
-                        // 3. Event listener sur la ligne invisible
-                        hitAreaPath.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            selectConnection(eq.id, visiblePath, e);
-                        });
-
-                        // 4. Ajouter les DEUX lignes au SVG (invisible d'abord)
-                        layer.appendChild(hitAreaPath);   // En dessous (détection)
-                        layer.appendChild(visiblePath);   // Au-dessus (visuel)
-                    }
-                }
-
-                // Lignes pour les ponts radio (inchangé)
-                if (eq.linkedTo && eq.id < eq.linkedTo) {
-                    const partner = equipments.find(e => e.id === eq.linkedTo);
-                    if (partner) {
-                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        const d = `M ${eq.x + 80} ${eq.y + 30} L ${partner.x + 80} ${partner.y + 30}`;
-                        path.setAttribute("d", d);
-                        path.setAttribute("stroke", "#007AFF");
-                        path.setAttribute("stroke-width", "2");
-                        path.setAttribute("stroke-dasharray", "5,5"); 
-                        path.setAttribute("fill", "none");
-                        layer.appendChild(path);
-                    }
-                }
-            });
-        }
-
-        function quickAddChild(parentId, e) {
-            e.stopPropagation();
-            openAddModal();
-            document.getElementById('newParent').value = parentId;
-            
-            const parentNode = equipments.find(eq => eq.id === parentId);
-            if(parentNode) {
-                suggestedX = parentNode.x + 50; 
-                suggestedY = parentNode.y + 150; 
-            }
-            showToast("Parent pré-sélectionné");
-        }
-
-        function render() {
-            document.querySelectorAll('.node').forEach(el => el.remove());
-            
-            equipments.forEach(eq => {
-                const div = document.createElement('div');
-                div.className = 'node'; div.id = eq.id;
-                div.style.left = eq.x + 'px'; div.style.top = eq.y + 'px';
-                if(eq.id === selectedEquipmentId) div.classList.add('selected');
-
-                let photoHtml = '';
-                if (eq.photo) {
-                    div.classList.add('node-with-photo');
-                    photoHtml = `<div class="photo-section">
-                                    <img src="${eq.photo}" class="field-photo">
-                                    <div class="photo-badge">📷</div>
-                                 </div>`;
-                }
-
-                div.innerHTML = `
-                    <div class="quick-delete-btn" onclick="deleteThisEquipment('${eq.id}', event)">✕</div>
-                    <div class="quick-add-btn" onclick="quickAddChild('${eq.id}', event)">+</div>
-                    ${photoHtml}
-                    <div class="icon">${getIcon(eq.type)}</div>
-                    <div class="device-name">${eq.deviceName}</div>
-                    ${eq.ip ? `<div class="ip-addr">${eq.ip}</div>` : ''}
-                    <div class="loc">${eq.loc}</div>`;
-                
-                if (eq.photo) {
-                    const photoSec = div.querySelector('.photo-section');
-                    if (photoSec) {
-                        photoSec.addEventListener('dblclick', (e) => {
-                            e.stopPropagation();
-                            selectedEquipmentId = eq.id; 
-                            openPhotoViewer(eq.photo);
-                        });
-                    }
-                }
-
-                div.addEventListener('mousedown', startDrag);
-                div.addEventListener('touchstart', startDrag, {passive: false});
-                
-                div.addEventListener('click', (e) => {
-                    e.stopPropagation();
-
-                    // MODE STYLO ACTIVÉ
-                    if (isPenMode) {
-                        handlePenModeClick(eq.id);
-                        return;  // Ne pas sélectionner l'équipement normalement
-                    }
-
-                    // MODE NORMAL (existant)
-                    deselectAll();
-                    div.classList.add('selected');
-                    selectedEquipmentId = eq.id;
-                    updateFloatingButtons();
-                });
-
-                div.addEventListener('dblclick', (e) => {
-                    if (e.target.closest('.photo-section')) return;
-                    e.stopPropagation(); 
-                    openEditModal(eq.id);
-                });
-
-                document.getElementById('workspace-container').appendChild(div);
-            });
-            updateConnectionsOnly();
-        }
-
-        let activeDragId = null; let dragStartX = 0; let dragStartY = 0; let initialObjX = 0; let initialObjY = 0;
-        let multiDragInitialPositions = {};
-
-        function startDrag(e) {
-            // AJOUT : Bloquer le drag si on est en mode sélection de zone
-            if (isSelectionMode) return;
-
-            // NOUVEAU : Bloquer le drag si on est en mode stylo
-            if (isPenMode) return;
-
-            if (e.target.classList.contains('quick-add-btn') || e.target.classList.contains('quick-delete-btn')) return;
-
-            activeDragId = e.currentTarget.id;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            dragStartX = clientX; dragStartY = clientY;
-            const eq = equipments.find(item => item.id === activeDragId);
-            initialObjX = eq.x; initialObjY = eq.y;
-
-            // Si l'équipement fait partie de la sélection multiple, stocker les positions de tous
-            if (multiSelectedIds.length > 0 && multiSelectedIds.includes(activeDragId)) {
-                multiDragInitialPositions = {};
-                multiSelectedIds.forEach(id => {
-                    const equipment = equipments.find(e => e.id === id);
-                    if (equipment) {
-                        multiDragInitialPositions[id] = { x: equipment.x, y: equipment.y };
-                    }
-                });
-            } else {
-                multiDragInitialPositions = {};
-            }
-
-            document.addEventListener('mousemove', onDrag);
-            document.addEventListener('touchmove', onDrag, {passive: false});
-            document.addEventListener('mouseup', endDrag); document.addEventListener('touchend', endDrag);
-        }
-
-        function onDrag(e) {
-            if (!activeDragId) return;
-            e.preventDefault();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const deltaX = (clientX - dragStartX) / currentZoom;
-            const deltaY = (clientY - dragStartY) / currentZoom;
-
-            // Si on déplace plusieurs équipements
-            if (Object.keys(multiDragInitialPositions).length > 0) {
-                Object.keys(multiDragInitialPositions).forEach(id => {
-                    const eq = equipments.find(item => item.id === id);
-                    if (eq) {
-                        const newX = multiDragInitialPositions[id].x + deltaX;
-                        const newY = multiDragInitialPositions[id].y + deltaY;
-                        eq.x = Math.max(0, newX);
-                        eq.y = Math.max(0, newY);
-                        const el = document.getElementById(id);
-                        if (el) {
-                            el.style.left = eq.x + 'px';
-                            el.style.top = eq.y + 'px';
-                        }
-                    }
-                });
-            } else {
-                // Déplacement d'un seul équipement
-                const newX = initialObjX + deltaX;
-                const newY = initialObjY + deltaY;
-                const eq = equipments.find(item => item.id === activeDragId);
-                eq.x = Math.max(0, newX);
-                eq.y = Math.max(0, newY);
-                const el = document.getElementById(activeDragId);
-                el.style.left = eq.x + 'px';
-                el.style.top = eq.y + 'px';
-            }
-
-            updateConnectionsOnly();
-        }
-
-        function endDrag() { 
-            activeDragId = null; 
-            markAsUnsaved(); 
-            document.removeEventListener('mousemove', onDrag);
-            document.removeEventListener('touchmove', onDrag);
-            document.removeEventListener('mouseup', endDrag);
-            document.removeEventListener('touchend', endDrag);
-        }
-        
-        function deselectAll(e) { 
-            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); 
-            selectedEquipmentId = null; updateFloatingButtons();
-        }
-        
-        function deleteThisEquipment(id, event) {
-            event.stopPropagation(); 
-            
-            if (confirm("Supprimer cet équipement ?")) {
-                const target = equipments.find(e => e.id === id);
-                if (target && target.linkedTo) {
-                    const partner = equipments.find(e => e.id === target.linkedTo);
-                    if (partner) delete partner.linkedTo;
-                }
-
-                equipments = equipments.filter(eq => eq.id !== id);
-                
-                equipments.forEach(e => { 
-                    if (e.parent === id) e.parent = null; 
-                });
-                
-                selectedEquipmentId = null;
-                markAsUnsaved(); 
-                updateFloatingButtons();
-                render();
-                showToast("✅ Équipement supprimé");
-            }
-        }
-
-        function updateFloatingButtons() {
-            const photoBtn = document.getElementById('photo-btn');
-            if (selectedEquipmentId) { 
-                photoBtn.classList.add('show'); 
-            } else { 
-                photoBtn.classList.remove('show'); 
-            }
-        }
-
-        function openAddModal() {
-            closeConnectionMenu(); // Fermer le menu de connexion si ouvert
-            document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
-            const sel = document.getElementById('newParent');
-            sel.innerHTML = '<option value="">-- Racine --</option>';
-            equipments.forEach(eq => sel.innerHTML += `<option value="${eq.id}">${eq.deviceName}</option>`);
-
-            editingEquipmentId = null;
-            document.getElementById('modalTitle').innerText = "Nouvel Équipement";
-            document.getElementById('modalActionBtn').innerText = "Ajouter";
-            document.getElementById('newType').value = 'switch';
-            document.getElementById('radioMode').value = 'couple'; 
-            
-            updateFormFields('switch'); 
-            
-            document.getElementById('newLocation').value = '';
-            document.getElementById('newLocationPR').value = '';
-            document.getElementById('newParent').value = '';
-            document.getElementById('newQuantity').value = "1";
-            document.getElementById('radioCoupleQuantity').value = "1";
-            document.getElementById('hpCount').value = "1";
-            updateHPFields();
-            
-            document.getElementById('addModal').style.display = 'flex';
-        }
-
-        function openEditModal(id) {
-            const eq = equipments.find(e => e.id === id);
-            if (!eq) return;
-            closeConnectionMenu(); // Fermer le menu de connexion si ouvert
-            document.querySelectorAll('.floating-ui').forEach(el => el.classList.add('modal-open'));
-            
-            const sel = document.getElementById('newParent');
-            sel.innerHTML = '<option value="">-- Racine --</option>';
-            equipments.forEach(e => { if (e.id !== id) sel.innerHTML += `<option value="${e.id}">${e.deviceName}</option>`; });
-
-            editingEquipmentId = id;
-            document.getElementById('modalTitle').innerText = "Modifier l'Équipement";
-            document.getElementById('modalActionBtn').innerText = "Modifier";
-            
-            document.getElementById('newType').value = eq.type;
-            
-            if (eq.type === 'radio') {
-                document.getElementById('radioModeGroup').style.display = 'block';
-                
-                if (eq.linkedTo) {
-                    document.getElementById('radioMode').value = 'couple';
-                    updateRadioFields(eq.deviceName, eq.ip); 
-                    
-                    const partner = equipments.find(e => e.id === eq.linkedTo);
-                    let isPE = eq.deviceName.startsWith('PE') || (eq.id < partner.id);
-                    
-                    if (isPE) {
-                        document.getElementById('newLocation').value = eq.loc;
-                        document.getElementById('newLocationPR').value = partner ? partner.loc : '';
-                    } else {
-                        document.getElementById('newLocation').value = partner ? partner.loc : '';
-                        document.getElementById('newLocationPR').value = eq.loc;
-                    }
-                } else {
-                    document.getElementById('radioMode').value = eq.deviceName.startsWith('PE') ? 'pe' : 'pr';
-                    updateRadioFields(eq.deviceName, eq.ip);
-                    document.getElementById('newLocation').value = eq.loc;
-                }
-            } else {
-                updateFormFields(eq.type, eq.deviceName, eq.ip);
-                document.getElementById('newLocation').value = eq.loc;
-            }
-            
-            document.getElementById('newParent').value = eq.parent || '';
-            document.getElementById('addModal').style.display = 'flex';
-        }
-
-        function closeAddModal() { 
-            document.getElementById('addModal').style.display = 'none'; 
-            document.querySelectorAll('.floating-ui').forEach(el => el.classList.remove('modal-open'));
-            editingEquipmentId = null;
-            suggestedX = null;
-            suggestedY = null;
-        }
-
-        /* CORRIGÉ : Fonction manquante ajoutée */
-        function getNextNEquipments(type, quantity) {
-            const presets = presetsByType[type];
-            if (!presets) return [];
-            
-            const usedNames = equipments.filter(eq => eq.type === type).map(eq => eq.deviceName);
-            const usedIPs = equipments.map(eq => eq.ip);
-            
-            const result = [];
-            let nameIndex = 0;
-            let ipIndex = 0;
-            
-            while (result.length < quantity && nameIndex < presets.names.length) {
-                const name = presets.names[nameIndex];
-                const ip = presets.ips[ipIndex];
-                
-                if (!usedNames.includes(name) && !usedIPs.includes(ip)) {
-                    result.push({ name, ip });
-                    usedNames.push(name);
-                    usedIPs.push(ip);
-                }
-                
-                nameIndex++;
-                ipIndex++;
-            }
-            
-            return result;
-        }
-
-        /* CORRIGÉ : Logique ajout multiple réécrite */
-        function addEquipment() {
-            const type = document.getElementById('newType').value;
-            const locPE = document.getElementById('newLocation').value || "Lieu PE";
-            const locPR = document.getElementById('newLocationPR').value || "Lieu PR";
-            const parent = document.getElementById('newParent').value || null;
-            
-            const deviceName = document.getElementById('newDeviceName').value || "Appareil";
-            const ip = document.getElementById('newIP').value || "";
-
-            if (editingEquipmentId) {
-                const eq = equipments.find(e => e.id === editingEquipmentId);
-                const radioMode = document.getElementById('radioMode').value;
-
-                if (eq) {
-                    if (eq.type === 'radio' && radioMode === 'couple' && eq.linkedTo) {
-                        const partner = equipments.find(e => e.id === eq.linkedTo);
-                        let isPE = eq.deviceName.startsWith('PE') || (eq.id < partner.id);
-                        if (isPE) { 
-                            eq.loc = locPE; 
-                            eq.parent = null; 
-                            if(partner) { partner.loc = locPR; partner.parent = parent; }
-                        } else { 
-                            eq.loc = locPR; 
-                            eq.parent = parent; 
-                            if(partner) { partner.loc = locPE; partner.parent = null; }
-                        }
-                    } else {
-                        eq.type = type; eq.deviceName = deviceName; eq.ip = ip; eq.loc = locPE; eq.parent = parent;
-                    }
-                    showToast("Équipement modifié !");
-                }
-            } else {
-                const radioMode = document.getElementById('radioMode').value;
-                let quantity = parseInt(document.getElementById('newQuantity').value) || 1;
-                
-                if (quantity > 20) quantity = 20;
-
-                let scrollX = (document.getElementById('workspace-wrapper').scrollLeft + 200) / currentZoom;
-                let scrollY = (document.getElementById('workspace-wrapper').scrollTop + 300) / currentZoom;
-                
-                if (suggestedX !== null && suggestedY !== null) {
-                    scrollX = suggestedX;
-                    scrollY = suggestedY;
-                    suggestedX = null;
-                    suggestedY = null;
-                }
-
-                if (type === 'radio' && radioMode === 'couple') {
-                    const select = document.getElementById('newDeviceName');
-                    const index = select.value;
-
-                    if (index === "" || index === "__manual__") {
-                        addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
-                    } else {
-                        // NOUVEAU : Récupérer la quantité de couples
-                        const coupleQuantity = parseInt(document.getElementById('radioCoupleQuantity').value) || 1;
-
-                        // Créer plusieurs couples à la suite
-                        for (let i = 0; i < coupleQuantity; i++) {
-                            // Calculer l'index du couple dans la liste
-                            const coupleIndex = parseInt(index) + i;
-
-                            // Vérifier qu'on ne dépasse pas les couples disponibles
-                            if (coupleIndex >= radioData.couples.length) {
-                                alert(`Attention : Seulement ${i} couples disponibles`);
-                                break;
-                            }
-
-                            const coupleData = radioData.couples[coupleIndex];
-                            const timestamp = Date.now() + (i * 2); // Décalage pour ID uniques
-                            const idPR = 'eq-' + timestamp;
-                            const idPE = 'eq-' + (timestamp + 1);
-
-                            // Calculer la position horizontale (en ligne)
-                            const offsetX = i * 400; // 400px entre chaque couple (PR + PE = 200px + espace)
-
-                            // PR à gauche (connecté au parent OU au PE précédent)
-                            const prParent = (i === 0) ? parent : ('eq-' + (timestamp - 1)); // PE précédent
-
-                            equipments.push({
-                                id: idPR,
-                                type: 'radio',
-                                deviceName: coupleData.prName,
-                                ip: coupleData.prIp,
-                                loc: locPR,
-                                parent: prParent,
-                                x: scrollX + offsetX,
-                                y: scrollY,
-                                linkedTo: idPE
-                            });
-
-                            // PE à droite (+200px)
-                            equipments.push({
-                                id: idPE,
-                                type: 'radio',
-                                deviceName: coupleData.peName,
-                                ip: coupleData.peIp,
-                                loc: locPE,
-                                parent: null,
-                                x: scrollX + offsetX + 200,
-                                y: scrollY,
-                                linkedTo: idPR
-                            });
-                        }
-
-                        showToast(`✅ ${coupleQuantity} couple(s) radio ajouté(s) !`);
-                    }
-                } 
-                else if (type === 'ampli') {
-                    const newEquipmentId = addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
-                    
-                    const hpCount = parseInt(document.getElementById('hpCount')?.value || 1);
-                    const ampliLocation = locPE || "Même lieu que l'ampli";
-                    
-                    for (let i = 1; i <= hpCount; i++) {
-                        const hpName = document.getElementById(`hpName${i}`)?.value || `HP${i}`;
-                        
-                        equipments.push({
-                            id: 'eq-' + Date.now() + '-hp' + i + Math.random().toString(36).substr(2, 5),
-                            type: 'hp',
-                            deviceName: hpName,
-                            ip: '',
-                            loc: ampliLocation,
-                            parent: newEquipmentId,
-                            x: scrollX + ((i - 1) * 220),
-                            y: scrollY + 200
-                        });
-                    }
-                    
-                    showToast(`✅ Ampli + ${hpCount} HP ajoutés !`);
-                }
-                else {
-                    const presets = presetsByType[type];
-                    
-                    if (quantity > 1 && presets) {
-                        const equipData = getNextNEquipments(type, quantity);
-                        
-                        if (equipData.length === 0) {
-                            alert(`Plus de noms/IPs disponibles pour ce type`);
-                            return;
-                        }
-                        
-                        const SPACING_X = 220;
-                        const SPACING_Y = 180;
-                        const COLS = 3;
-                        
-                        equipData.forEach((data, index) => {
-                            const row = Math.floor(index / COLS);
-                            const col = index % COLS;
-                            const x = scrollX + (col * SPACING_X);
-                            const y = scrollY + (row * SPACING_Y);
-                            
-                            addSingleNode(type, data.name, data.ip, locPE, parent, x, y);
-                        });
-                        
-                        showToast(`✅ ${equipData.length} équipements ajoutés !`);
-                    } else {
-                        addSingleNode(type, deviceName, ip, locPE, parent, scrollX, scrollY);
-                        showToast("Équipement ajouté !");
-                    }
-                }
-            }
-
-            markAsUnsaved(); 
-            selectedEquipmentId = null;
-            updateFloatingButtons();
-            render(); 
-            closeAddModal();
-        }
-
-        function addSingleNode(type, name, ip, loc, parent, x, y) {
-            const newId = 'eq-' + Date.now() + Math.random().toString(36).substr(2, 5);
-            equipments.push({
-                id: newId,
-                type: type,
-                deviceName: name,
-                ip: ip,
-                loc: loc,
-                parent: parent,
-                x: x, y: y
-            });
-            return newId;
-        }
-
-        function checkInput() { 
-            document.getElementById('btnDownload').classList.toggle('disabled', !document.getElementById('siteName').value);
-            markAsUnsaved(); 
-        }
-
-        function downloadPDF() {
-            if (!document.getElementById('siteName').value) {
-                alert("Veuillez saisir un nom de site avant d'exporter");
-                return;
-            }
-            
-            const name = document.getElementById('siteName').value;
-            deselectAll();
-            
-            const oldZoom = currentZoom;
-            const wrapper = document.getElementById('workspace-wrapper');
-            const container = document.getElementById('workspace-container');
-            
-            if (equipments.length === 0) {
-                alert("Aucun équipement à exporter");
-                return;
-            }
-            
-            let minX = Infinity, minY = Infinity;
-            let maxX = -Infinity, maxY = -Infinity;
-            
-            equipments.forEach(eq => {
-                minX = Math.min(minX, eq.x);
-                minY = Math.min(minY, eq.y);
-                maxX = Math.max(maxX, eq.x + 200);
-                maxY = Math.max(maxY, eq.y + 200);
-            });
-            
-            const MARGIN = 50;
-            minX = Math.max(0, minX - MARGIN);
-            minY = Math.max(0, minY - MARGIN);
-            maxX = maxX + MARGIN;
-            maxY = maxY + MARGIN;
-            
-            const captureWidth = maxX - minX;
-            const captureHeight = maxY - minY;
-            
-            container.style.transform = 'scale(1)';
-            wrapper.scrollLeft = minX;
-            wrapper.scrollTop = minY;
-            
-            showToast("📄 Génération du PDF...");
-            
-            setTimeout(() => {
-                const options = {
-                    x: minX,
-                    y: minY,
-                    width: captureWidth,
-                    height: captureHeight,
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#F2F2F7',
-                    logging: false,
-                    scrollX: 0,
-                    scrollY: 0,
-                    windowWidth: captureWidth,
-                    windowHeight: captureHeight
-                };
-                
-                html2canvas(container, options).then(canvas => {
-                    try {
-                        const imgWidth = canvas.width / 2;
-                        const imgHeight = canvas.height / 2;
-                        
-                        const orientation = imgWidth > imgHeight ? 'landscape' : 'portrait';
-                        const pdf = new jspdf.jsPDF({
-                            orientation: orientation,
-                            unit: 'mm',
-                            format: 'a4'
-                        });
-                        
-                        const pageWidth = pdf.internal.pageSize.getWidth();
-                        const pageHeight = pdf.internal.pageSize.getHeight();
-                        
-                        const ratio = Math.min(
-                            pageWidth / (imgWidth * 0.264583),
-                            pageHeight / (imgHeight * 0.264583)
-                        );
-                        
-                        const pdfWidth = imgWidth * 0.264583 * ratio;
-                        const pdfHeight = imgHeight * 0.264583 * ratio;
-                        
-                        const x = (pageWidth - pdfWidth) / 2;
-                        const y = (pageHeight - pdfHeight) / 2;
-                        
-                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                        pdf.addImage(imgData, 'JPEG', x, y, pdfWidth, pdfHeight);
-                        pdf.save(`Synoptique_${name}.pdf`);
-                        showToast("✅ PDF généré avec succès !");
-                        
-                    } catch (error) {
-                        console.error('Erreur génération PDF:', error);
-                        alert("Erreur lors de la génération du PDF : " + error.message);
-                    } finally {
-                        container.style.transform = `scale(${oldZoom})`;
-                    }
-                }).catch(error => {
-                    console.error('Erreur html2canvas:', error);
-                    alert("Erreur lors de la capture : " + error.message);
-                    container.style.transform = `scale(${oldZoom})`;
-                });
-            }, 300);
-        }
-
-        /* Active/Désactive le mode suppression de zone */
-        function toggleSelectionMode() {
-            isSelectionMode = !isSelectionMode;
-            const btn = document.getElementById('delZoneBtn');
-            const body = document.body;
-
-            if (isSelectionMode) {
-                btn.classList.add('active');
-                body.classList.add('selection-mode');
-                showToast("Mode suppression : Cliquez pour commencer la zone");
-                deselectAll(); // Désélectionne les objets actifs
-                closeConnectionMenu(); // Fermer le menu de connexion si ouvert
-
-                // Désactiver les autres modes s'ils sont actifs
-                if (isPenMode) {
-                    togglePenMode();
-                }
-                if (isMultiSelectMode) {
-                    toggleMultiSelectMode();
-                }
-            } else {
-                btn.classList.remove('active');
-                body.classList.remove('selection-mode');
-                resetSelectionBox();
-            }
-        }
-
-        /* Gère les clics pour définir le début et la fin de la zone */
-        function handleWorkspaceClick(e) {
-            // MODE SÉLECTION MULTIPLE
-            if (isMultiSelectMode) {
-                // Ignorer si on clique sur un équipement
-                if (e.target.closest('.node')) return;
-
-                const container = document.getElementById('workspace-container');
-                const rect = container.getBoundingClientRect();
-
-                // Coordonnées relatives au conteneur zoomé
-                const x = (e.clientX - rect.left) / currentZoom;
-                const y = (e.clientY - rect.top) / currentZoom;
-
-                if (!multiSelectStart) {
-                    // Premier clic : démarrer la zone
-                    multiSelectStart = { x, y };
-                    const box = document.getElementById('selectionBox');
-                    box.style.left = x + 'px';
-                    box.style.top = y + 'px';
-                    box.style.width = '0px';
-                    box.style.height = '0px';
-                    box.style.display = 'block';
-                    box.style.backgroundColor = 'rgba(88, 86, 214, 0.2)';
-                    box.style.borderColor = '#5856D6';
-
-                    // Ajouter écouteur de mouvement pour dessiner le carré
-                    document.addEventListener('mousemove', handleMultiSelectionMove);
-                } else {
-                    // Deuxième clic : terminer la zone et sélectionner
-                    document.removeEventListener('mousemove', handleMultiSelectionMove);
-                    processMultiSelect(multiSelectStart, { x, y });
-                    resetMultiSelectionBox();
-                    toggleMultiSelectMode(); // Quitter le mode automatiquement
-                }
-                return;
-            }
-
-            // MODE SUPPRESSION
-            if (isSelectionMode) {
-                // Ignorer si on clique sur un équipement
-                if (e.target.closest('.node')) return;
-
-                const container = document.getElementById('workspace-container');
-                const rect = container.getBoundingClientRect();
-
-                // Coordonnées relatives au conteneur zoomé
-                const x = (e.clientX - rect.left) / currentZoom;
-                const y = (e.clientY - rect.top) / currentZoom;
-
-                if (!selectionStart) {
-                    // Premier clic : démarrer la zone
-                    selectionStart = { x, y };
-                    const box = document.getElementById('selectionBox');
-                    box.style.left = x + 'px';
-                    box.style.top = y + 'px';
-                    box.style.width = '0px';
-                    box.style.height = '0px';
-                    box.style.display = 'block';
-                    box.style.backgroundColor = 'rgba(255, 59, 48, 0.2)';
-                    box.style.borderColor = '#FF3B30';
-
-                    // Ajouter écouteur de mouvement pour dessiner le carré
-                    document.addEventListener('mousemove', handleSelectionMove);
-                } else {
-                    // Deuxième clic : terminer la zone et proposer la suppression
-                    document.removeEventListener('mousemove', handleSelectionMove);
-                    processBulkDelete(selectionStart, { x, y });
-                    resetSelectionBox();
-                    toggleSelectionMode(); // Quitter le mode automatiquement
-                }
-                return;
-            }
-
-            // MODE NORMAL
-            deselectAll(e);
-            clearMultiSelection();
-        }
-
-        /* Dessine le carré en temps réel */
-        function handleSelectionMove(e) {
-            if (!selectionStart) return;
-
-            const container = document.getElementById('workspace-container');
-            const rect = container.getBoundingClientRect();
-            const currentX = (e.clientX - rect.left) / currentZoom;
-            const currentY = (e.clientY - rect.top) / currentZoom;
-
-            const box = document.getElementById('selectionBox');
-
-            const width = Math.abs(currentX - selectionStart.x);
-            const height = Math.abs(currentY - selectionStart.y);
-            const left = Math.min(currentX, selectionStart.x);
-            const top = Math.min(currentY, selectionStart.y);
-
-            box.style.width = width + 'px';
-            box.style.height = height + 'px';
-            box.style.left = left + 'px';
-            box.style.top = top + 'px';
-        }
-
-        /* Réinitialise le carré */
-        function resetSelectionBox() {
-            selectionStart = null;
-            const box = document.getElementById('selectionBox');
-            box.style.display = 'none';
-            document.removeEventListener('mousemove', handleSelectionMove);
-        }
-
-        /* Calcule les éléments dans la zone et supprime */
-        function processBulkDelete(start, end) {
-            const minX = Math.min(start.x, end.x);
-            const maxX = Math.max(start.x, end.x);
-            const minY = Math.min(start.y, end.y);
-            const maxY = Math.max(start.y, end.y);
-
-            // Trouver les équipements dont le centre est dans la zone
-            const toDelete = equipments.filter(eq => {
-                const centerX = eq.x + 80; // Largeur approx 160/2
-                const centerY = eq.y + 60; // Hauteur approx 120/2
-                return centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY;
-            });
-
-            if (toDelete.length === 0) {
-                showToast("Aucun équipement sélectionné");
-                return;
-            }
-
-            if (confirm(`Voulez-vous supprimer ces ${toDelete.length} équipements sélectionnés ?`)) {
-                const idsToDelete = toDelete.map(eq => eq.id);
-
-                // Filtrer la liste principale
-                equipments = equipments.filter(eq => !idsToDelete.includes(eq.id));
-
-                // Nettoyer les liens orphelins (parents ou ponts radio)
-                equipments.forEach(eq => {
-                    if (idsToDelete.includes(eq.parent)) eq.parent = null;
-                    if (idsToDelete.includes(eq.linkedTo)) delete eq.linkedTo;
-                });
-
-                markAsUnsaved();
-                render();
-                showToast(`🗑️ ${toDelete.length} équipements supprimés`);
-            }
-        }
-
-        /* Raccourci Clavier Echap */
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                if (isSelectionMode) {
-                    toggleSelectionMode();
-                }
-                if (isPenMode) {
-                    showToast("✏️ Mode Stylo désactivé");
-                    togglePenMode();
-                }
-                if (isMultiSelectMode) {
-                    showToast("⬚ Mode Sélection désactivé");
-                    toggleMultiSelectMode();
-                }
-                // Désélectionner la sélection multiple même si le mode n'est pas actif
-                if (multiSelectedIds.length > 0) {
-                    clearMultiSelection();
-                }
-            }
-        });
-
-        /* Dessine le carré de sélection multiple en temps réel */
-        function handleMultiSelectionMove(e) {
-            if (!multiSelectStart) return;
-
-            const container = document.getElementById('workspace-container');
-            const rect = container.getBoundingClientRect();
-            const currentX = (e.clientX - rect.left) / currentZoom;
-            const currentY = (e.clientY - rect.top) / currentZoom;
-
-            const box = document.getElementById('selectionBox');
-
-            const width = Math.abs(currentX - multiSelectStart.x);
-            const height = Math.abs(currentY - multiSelectStart.y);
-            const left = Math.min(currentX, multiSelectStart.x);
-            const top = Math.min(currentY, multiSelectStart.y);
-
-            box.style.width = width + 'px';
-            box.style.height = height + 'px';
-            box.style.left = left + 'px';
-            box.style.top = top + 'px';
-        }
-
-        /* Réinitialise le carré de sélection multiple */
-        function resetMultiSelectionBox() {
-            multiSelectStart = null;
-            const box = document.getElementById('selectionBox');
-            box.style.display = 'none';
-            document.removeEventListener('mousemove', handleMultiSelectionMove);
-        }
-
-        /* Sélectionne les équipements dans la zone */
-        function processMultiSelect(start, end) {
-            const minX = Math.min(start.x, end.x);
-            const maxX = Math.max(start.x, end.x);
-            const minY = Math.min(start.y, end.y);
-            const maxY = Math.max(start.y, end.y);
-
-            // Trouver les équipements dont le centre est dans la zone
-            const toSelect = equipments.filter(eq => {
-                const centerX = eq.x + 80; // Largeur approx 160/2
-                const centerY = eq.y + 60; // Hauteur approx 120/2
-                return centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY;
-            });
-
-            if (toSelect.length === 0) {
-                showToast("Aucun équipement dans la zone");
-                return;
-            }
-
-            // Stocker les IDs sélectionnés
-            multiSelectedIds = toSelect.map(eq => eq.id);
-
-            // Appliquer le style visuel
-            document.querySelectorAll('.node').forEach(node => {
-                if (multiSelectedIds.includes(node.id)) {
-                    node.classList.add('multi-selected');
-                } else {
-                    node.classList.remove('multi-selected');
-                }
-            });
-
-            showToast(`✅ ${multiSelectedIds.length} équipement(s) sélectionné(s)\n\nVous pouvez maintenant les déplacer ensemble`);
-        }
-
-        /* Désélectionne tous les équipements en multi-sélection */
-        function clearMultiSelection() {
-            multiSelectedIds = [];
-            document.querySelectorAll('.node').forEach(node => {
-                node.classList.remove('multi-selected');
-            });
-        }
-
-        /* Activer/Désactiver le mode sélection multiple */
-        function toggleMultiSelectMode() {
-            isMultiSelectMode = !isMultiSelectMode;
-            const btn = document.getElementById('multiSelectBtn');
-            const body = document.body;
-
-            if (isMultiSelectMode) {
-                // ACTIVER LE MODE SÉLECTION MULTIPLE
-                btn.classList.add('active');
-                body.classList.add('multi-select-mode');
-                showToast("⬚ Mode Sélection : Cliquez 2 fois pour créer une zone de sélection");
-
-                // Désactiver les autres modes
-                if (isSelectionMode) {
-                    toggleSelectionMode();
-                }
-                if (isPenMode) {
-                    togglePenMode();
-                }
-
-                // Désélectionner tout
-                deselectAll();
-                deselectConnection();
-                closeConnectionMenu();
-
-            } else {
-                // DÉSACTIVER LE MODE SÉLECTION MULTIPLE
-                btn.classList.remove('active');
-                body.classList.remove('multi-select-mode');
-                resetMultiSelectionBox();
-            }
-        }
-
-        /* Sélectionner une connexion avec effet visuel */
-        function selectConnection(childId, pathElement, event) {
-            // Désélectionner l'ancienne ligne
-            deselectConnection();
-
-            // Sélectionner la nouvelle ligne
-            selectedConnectionId = childId;
-            selectedConnectionPath = pathElement;
-
-            // Stocker la largeur originale
-            const originalWidth = pathElement.getAttribute("data-original-width") || pathElement.getAttribute("stroke-width");
-            pathElement.setAttribute("data-original-width", originalWidth);
-
-            // Effet visuel de sélection
-            pathElement.setAttribute("stroke-width", parseInt(originalWidth) + 2);  // Plus épais
-            pathElement.style.filter = 'drop-shadow(0 0 6px rgba(0, 122, 255, 0.6))';  // Halo bleu
-
-            // Ouvrir le menu
-            openConnectionMenu(event, childId);
-        }
-
-        /* Désélectionner une connexion */
-        function deselectConnection() {
-            if (selectedConnectionPath) {
-                const originalWidth = selectedConnectionPath.getAttribute("data-original-width");
-                if (originalWidth) {
-                    selectedConnectionPath.setAttribute("stroke-width", originalWidth);
-                }
-                selectedConnectionPath.style.filter = 'none';
-                selectedConnectionPath = null;
-            }
-            selectedConnectionId = null;
-        }
-
-        /* Activer/Désactiver le mode Stylo */
-        function togglePenMode() {
-            isPenMode = !isPenMode;
-            const btn = document.getElementById('penBtn');
-            const body = document.body;
-
-            if (isPenMode) {
-                // ACTIVER LE MODE STYLO
-                btn.classList.add('active');
-                body.style.cursor = 'crosshair';
-                document.getElementById('workspace-container').style.cursor = 'crosshair';
-
-                // Changer le curseur des équipements
-                document.querySelectorAll('.node').forEach(node => {
-                    node.style.cursor = 'crosshair';
-                });
-
-                // Désactiver les autres modes
-                if (isSelectionMode) {
-                    toggleSelectionMode();
-                }
-                if (isMultiSelectMode) {
-                    toggleMultiSelectMode();
-                }
-
-                // Désélectionner tout
-                deselectAll();
-                deselectConnection();
-                closeConnectionMenu();
-                clearMultiSelection();
-                penFirstEquipment = null;
-
-                showToast("✏️ Mode Stylo activé : Cliquez sur l'équipement PARENT puis sur l'ENFANT");
-
-            } else {
-                // DÉSACTIVER LE MODE STYLO
-                btn.classList.remove('active');
-                body.style.cursor = 'default';
-                document.getElementById('workspace-container').style.cursor = 'default';
-
-                // Restaurer le curseur des équipements
-                document.querySelectorAll('.node').forEach(node => {
-                    node.style.cursor = 'grab';
-                });
-
-                penFirstEquipment = null;
-
-                // Retirer le highlight du parent sélectionné
-                document.querySelectorAll('.node').forEach(node => {
-                    node.style.border = '';
-                    node.style.boxShadow = '';
-                });
-            }
-        }
-
-        /* Gérer les clics en mode Stylo */
-        function handlePenModeClick(equipmentId) {
-            if (!penFirstEquipment) {
-                // PREMIER CLIC : Sélectionner le parent
-                penFirstEquipment = equipmentId;
-
-                const parentEq = equipments.find(e => e.id === equipmentId);
-                showToast(`✅ Parent sélectionné : ${parentEq.deviceName}\n\nCliquez maintenant sur l'équipement ENFANT`);
-
-                // Highlight visuel du parent (bordure verte)
-                const parentNode = document.getElementById(equipmentId);
-                if (parentNode) {
-                    parentNode.style.border = '4px solid #34C759';
-                    parentNode.style.boxShadow = '0 0 0 3px rgba(52, 199, 89, 0.3)';
-                }
-
-            } else {
-                // DEUXIÈME CLIC : Créer la connexion
-                const parentId = penFirstEquipment;
-                const childId = equipmentId;
-
-                // Vérifier qu'on ne connecte pas un équipement à lui-même
-                if (parentId === childId) {
-                    showToast("❌ Impossible de connecter un équipement à lui-même");
-
-                    // Retirer le highlight
-                    const parentNode = document.getElementById(parentId);
-                    if (parentNode) {
-                        parentNode.style.border = '';
-                        parentNode.style.boxShadow = '';
-                    }
-
-                    penFirstEquipment = null;
-                    return;
-                }
-
-                // Créer la connexion
-                const childEq = equipments.find(e => e.id === childId);
-                if (childEq) {
-                    // Si l'enfant avait déjà un parent, demander confirmation
-                    if (childEq.parent) {
-                        const parentEq = equipments.find(e => e.id === parentId);
-                        const oldParentEq = equipments.find(e => e.id === childEq.parent);
-
-                        const confirmChange = confirm(
-                            `${childEq.deviceName} est déjà connecté à ${oldParentEq?.deviceName || 'un équipement'}.\n\nVoulez-vous le reconnecter à ${parentEq.deviceName} ?`
-                        );
-
-                        if (!confirmChange) {
-                            // Retirer le highlight
-                            const parentNode = document.getElementById(parentId);
-                            if (parentNode) {
-                                parentNode.style.border = '';
-                                parentNode.style.boxShadow = '';
-                            }
-                            penFirstEquipment = null;
-                            return;
-                        }
-                    }
-
-                    // Définir le nouveau parent avec style Ethernet par défaut
-                    childEq.parent = parentId;
-
-                    // Si pas de style défini, créer un style Ethernet par défaut
-                    if (!childEq.connectionStyle) {
-                        childEq.connectionStyle = {
-                            type: 'ethernet',
-                            color: '#007AFF',
-                            width: 2,
-                            dasharray: ''
-                        };
-                    }
-
-                    const parentEq = equipments.find(e => e.id === parentId);
-                    showToast(`✅ Connexion créée :\n${parentEq.deviceName} → ${childEq.deviceName}`);
-
-                    // Retirer le highlight
-                    const parentNode = document.getElementById(parentId);
-                    if (parentNode) {
-                        parentNode.style.border = '';
-                        parentNode.style.boxShadow = '';
-                    }
-
-                    markAsUnsaved();
-                    render();
-
-                    // Réinitialiser pour permettre une nouvelle connexion sans désactiver le mode
-                    penFirstEquipment = null;
-                }
-            }
-        }
-
-        /* Ouvrir le menu contextuel de connexion */
-        function openConnectionMenu(event, childId) {
-            selectedConnectionId = childId;
-
-            const menu = document.getElementById('connectionMenu');
-            const container = document.getElementById('workspace-container');
-            const rect = container.getBoundingClientRect();
-
-            // Position du clic dans le conteneur (tenant compte du zoom)
-            const x = (event.clientX - rect.left) / currentZoom;
-            const y = (event.clientY - rect.top) / currentZoom;
-
-            // Afficher le menu au-dessus du point cliqué
-            menu.style.display = 'block';
-            menu.style.left = (x - 90) + 'px';  // Centré (menu width ≈ 180px)
-            menu.style.top = (y - 70) + 'px';   // Au-dessus
-
-            // Fermer le menu si on clique ailleurs
-            setTimeout(() => {
-                document.addEventListener('click', closeConnectionMenu, { once: true });
-            }, 100);
-        }
-
-        /* Fermer le menu contextuel */
-        function closeConnectionMenu() {
-            document.getElementById('connectionMenu').style.display = 'none';
-            deselectConnection();
-        }
-
-        /* Appliquer le style de connexion */
-        function setConnectionStyle(styleType) {
-            if (!selectedConnectionId) return;
-
-            const eq = equipments.find(e => e.id === selectedConnectionId);
-            if (!eq) return;
-
-            // Définir le style selon le type
-            const styles = {
-                ethernet: {
-                    type: 'ethernet',
-                    color: '#007AFF',
-                    width: 2,
-                    dasharray: ''
-                },
-                radio: {
-                    type: 'radio',
-                    color: '#007AFF',
-                    width: 2,
-                    dasharray: '5,5'
-                },
-                fiber: {
-                    type: 'fiber',
-                    color: '#FFD700',  // Jaune/or
-                    width: 3,
-                    dasharray: ''
-                }
-            };
-
-            eq.connectionStyle = styles[styleType];
-
-            markAsUnsaved();
-            render();
-            closeConnectionMenu();
-            showToast(`✅ Connexion modifiée : ${styleType === 'ethernet' ? 'Ethernet' : styleType === 'radio' ? 'Radio' : 'Fibre'}`);
-        }
-
-        /* Supprimer la connexion */
-        function deleteConnection() {
-            if (!selectedConnectionId) return;
-
-            if (confirm("Supprimer cette connexion ?\n\nL'équipement deviendra indépendant.")) {
-                const eq = equipments.find(e => e.id === selectedConnectionId);
-                if (eq) {
-                    eq.parent = null;  // Déconnecter
-                    delete eq.connectionStyle;  // Réinitialiser le style
-
-                    markAsUnsaved();
-                    render();
-                    closeConnectionMenu();
-                    showToast("🔗 Connexion supprimée");
-                }
-            }
-        }
-
-        window.onload = render;
-    </script>
-</body>
+    <script src="script.js"></script>
+  </body>
 </html>
