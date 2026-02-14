@@ -1200,3 +1200,18 @@ body.dark-mode #connectionMenu > div {
     transform: scale(1.2);
   }
 }
+
+/* Style du bouton Excel */
+.excel-btn {
+    border: 2px solid #1D6F42; /* Vert Excel */
+    color: #1D6F42;
+}
+
+.excel-btn:hover {
+    background: #E8F5E9;
+}
+
+/* Mode sombre */
+body.dark-mode .excel-btn:hover {
+    background: #1a3b2a;
+}
