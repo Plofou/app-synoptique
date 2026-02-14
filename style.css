@@ -1215,3 +1215,40 @@ body.dark-mode #connectionMenu > div {
 body.dark-mode .excel-btn:hover {
     background: #1a3b2a;
 }
+
+/* Ajout du logo en fond du workspace */
+#workspace-container::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* Le chemin vers votre logo */
+    background-image: url('assets/myco.png');
+    
+    /* Répétition pour couvrir tout l'espace */
+    background-repeat: repeat;
+    
+    /* Taille de chaque petit logo (ajustez selon votre goût) */
+    background-size: 500px; 
+    
+    /* Espacement entre les répétitions (astuce avec background-origin) */
+    background-position: center;
+    
+    /* TRANSPARENCE : Très important pour ne pas gêner la lecture */
+    opacity: 0.05; /* Entre 0.03 et 0.1 c'est bien */
+    
+    /* Pour que les clics passent à travers (CRUCIAL) */
+    pointer-events: none;
+    
+    /* S'assure qu'il est derrière les équipements mais devant la grille */
+    z-index: 0; 
+}
+
+/* Ajustement pour le mode sombre */
+body.dark-mode #workspace-container::before {
+    opacity: 0.02; /* Encore plus discret sur fond noir */
+    filter: grayscale(100%); /* Optionnel : logo en noir et blanc */
+}
