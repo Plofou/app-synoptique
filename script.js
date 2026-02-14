@@ -51,6 +51,8 @@ function saveState() {
     }
 
     updateUndoRedoButtons();
+    // === AJOUTER CETTE LIGNE ===
+    saveToBrowser(); // <--- Sauvegarde auto à chaque action !
 }
 
 function undo() {
@@ -366,27 +368,41 @@ function toggleDarkMode() {
   }
 }
 
-// Initialisation globale
+// Remplace ton bloc window.load actuel par celui-ci :
+
 window.addEventListener("load", function () {
-  console.log("Application Synoptique Démarrée"); // Pour le debug
+  console.log("Application Synoptique Démarrée");
   
+  // 1. Gestion du Dark Mode
   const darkMode = localStorage.getItem("darkMode");
   if (darkMode === "enabled") {
     document.getElementById("darkModeSwitch").checked = true;
     toggleDarkMode();
   }
-  
+
+  // 2. RÉCUPÉRATION DE L'AUTO SAVE
+  const savedData = localStorage.getItem("myConnectData");
+  const savedName = localStorage.getItem("myConnectName");
+
+  if (savedData && savedData !== "[]") {
+      // Si on trouve des données, on les charge
+      try {
+          equipments = JSON.parse(savedData);
+          if (savedName) document.getElementById("siteName").value = savedName;
+          showToast("📂 Restauration de la dernière session");
+      } catch (e) {
+          console.error("Erreur lecture sauvegarde auto", e);
+      }
+  }
+
+  // 3. Lancement normal
   render();
-  saveState();
+  saveState(); // Initialise l'historique
   updateZoomDisplay();
   
-  // Centrer la vue
   setTimeout(() => {
     const wrapper = document.getElementById("workspace-wrapper");
-    if(wrapper) {
-        wrapper.scrollLeft = 0;
-        wrapper.scrollTop = 0;
-    }
+    if(wrapper) { wrapper.scrollLeft = 0; wrapper.scrollTop = 0; }
   }, 100);
 });
 
@@ -2577,3 +2593,24 @@ function onOrangeUp(e) {
   }
 }
 
+/* ==========================================================================
+   AUTO SAVE (LOCAL STORAGE)
+   ========================================================================== */
+function saveToBrowser() {
+    const data = JSON.stringify(equipments);
+    const name = document.getElementById("siteName").value;
+    
+    localStorage.setItem("myConnectData", data);
+    localStorage.setItem("myConnectName", name);
+    
+    // Petit indicateur visuel (optionnel)
+    const status = document.getElementById("saveStatus");
+    if(status) status.style.borderBottom = "2px solid #34C759"; // Souligne en vert
+    setTimeout(() => { if(status) status.style.borderBottom = "none"; }, 500);
+}
+
+function clearBrowserSave() {
+    localStorage.removeItem("myConnectData");
+    localStorage.removeItem("myConnectName");
+    location.reload(); // Recharge la page à zéro
+}
