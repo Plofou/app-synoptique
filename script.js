@@ -20,6 +20,108 @@ let isMultiSelectMode = false;
 let multiSelectedIds = [];
 let multiSelectStart = null;
 
+const GRID_SIZE = 30; // Taille de la grille magnétique
+
+/* ==========================================================================
+   GESTION HISTORIQUE (UNDO / REDO)
+   ========================================================================== */
+const MAX_HISTORY = 50; // Nombre max d'actions mémorisées
+let historyStack = [];
+let historyStep = -1;
+
+// Fonction pour sauvegarder l'état actuel
+function saveState() {
+    // 1. Si on est revenu en arrière, on coupe l'historique futur (le redo est perdu si on fait une nouvelle action)
+    if (historyStep < historyStack.length - 1) {
+        historyStack = historyStack.slice(0, historyStep + 1);
+    }
+
+    // 2. On ajoute une COPIE PROPRE des données actuelles
+    // On utilise JSON pour casser les références mémoire
+    const state = JSON.stringify(equipments);
+    historyStack.push(state);
+
+    // 3. Limite de mémoire
+    if (historyStack.length > MAX_HISTORY) {
+        historyStack.shift(); // On enlève le plus vieux
+    } else {
+        historyStep++;
+    }
+
+    updateUndoRedoButtons();
+}
+
+function undo() {
+    if (historyStep > 0) {
+        historyStep--;
+        restoreState();
+    }
+}
+
+function redo() {
+    if (historyStep < historyStack.length - 1) {
+        historyStep++;
+        restoreState();
+    }
+}
+
+function restoreState() {
+    const stateStr = historyStack[historyStep];
+    if (stateStr) {
+        equipments = JSON.parse(stateStr);
+        // On relance le rendu
+        render();
+        // On sauvegarde le statut (optionnel, pour dire que c'est "modifié")
+        markAsUnsaved(); 
+        // Important : On désélectionne tout pour éviter les bugs d'ID fantômes
+        deselectAll();
+        updateUndoRedoButtons();
+    }
+}
+
+function updateUndoRedoButtons() {
+    const btnUndo = document.getElementById("btnUndo");
+    const btnRedo = document.getElementById("btnRedo");
+    
+    if(!btnUndo || !btnRedo) return;
+
+    // Gestion Undo
+    if (historyStep > 0) {
+        btnUndo.disabled = false;
+        btnUndo.style.opacity = "1";
+    } else {
+        btnUndo.disabled = true;
+        btnUndo.style.opacity = "0.5";
+    }
+
+    // Gestion Redo
+    if (historyStep < historyStack.length - 1) {
+        btnRedo.disabled = false;
+        btnRedo.style.opacity = "1";
+    } else {
+        btnRedo.disabled = true;
+        btnRedo.style.opacity = "0.5";
+    }
+}
+
+// Raccourcis Clavier (Ctrl+Z / Ctrl+Y)
+document.addEventListener("keydown", function(e) {
+    // Si on est en train de taper du texte, on ignore
+    if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+
+    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        undo();
+    }
+    
+    // Ctrl+Y ou Ctrl+Shift+Z pour Redo
+    if (((e.ctrlKey || e.metaKey) && e.key === "y") || 
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "z")) {
+        e.preventDefault();
+        redo();
+    }
+});
+
 // NOUVEAU : Variables pour les poignées de contrôle
 let isDraggingHandle = false;
 let draggedHandle = null;
@@ -269,6 +371,7 @@ window.addEventListener("load", function () {
   }
   
   render();
+  saveState();
   updateZoomDisplay();
   
   // Centrer la vue
@@ -543,16 +646,67 @@ function updateConnectionsOnly() {
       }
     }
 
+    // GESTION DES COUPLES RADIO (LIGNE POINTILLÉE + ÉTIQUETTE)
     if (eq.linkedTo && eq.id < eq.linkedTo) {
       const partner = equipments.find((e) => e.id === eq.linkedTo);
       if (partner) {
+        // 1. Coordonnées de départ et d'arrivée (Centre du boitier environ)
+        const x1 = eq.x + 80;
+        const y1 = eq.y + 60; // +60 pour être au milieu verticalement
+        const x2 = partner.x + 80;
+        const y2 = partner.y + 60;
+
+        // 2. Dessiner la ligne pointillée
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", `M ${eq.x + 80} ${eq.y + 30} L ${partner.x + 80} ${partner.y + 30}`);
+        path.setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2}`);
         path.setAttribute("stroke", "#007AFF");
         path.setAttribute("stroke-width", "2");
-        path.setAttribute("stroke-dasharray", "5,5");
+        path.setAttribute("stroke-dasharray", "5,5"); // Effet pointillé
         path.setAttribute("fill", "none");
         layer.appendChild(path);
+
+        // 3. Calculer le milieu pour le texte
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+
+        // 4. Extraire le numéro du lien (ex: "PE12" -> "12")
+        // On cherche les chiffres dans le nom de l'équipement
+        const numMatch = eq.deviceName.match(/\d+/);
+        const linkNum = numMatch ? numMatch[0] : "?";
+        const labelText = `LIEN ${linkNum}`;
+
+        // 5. Créer un groupe SVG pour l'étiquette
+        const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        
+        // Fond blanc (rect) pour que le texte soit lisible sur la ligne
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        const textWidth = 50; // Largeur approximative
+        const textHeight = 20;
+        rect.setAttribute("x", midX - (textWidth / 2));
+        rect.setAttribute("y", midY - (textHeight / 2));
+        rect.setAttribute("width", textWidth);
+        rect.setAttribute("height", textHeight);
+        rect.setAttribute("fill", "white");
+        rect.setAttribute("rx", "4"); // Coins arrondis
+        rect.setAttribute("stroke", "#007AFF");
+        rect.setAttribute("stroke-width", "1");
+        
+        // Le Texte
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", midX);
+        text.setAttribute("y", midY);
+        text.setAttribute("text-anchor", "middle"); // Centré horizontalement
+        text.setAttribute("dominant-baseline", "middle"); // Centré verticalement
+        text.setAttribute("fill", "#007AFF");
+        text.setAttribute("font-size", "10px");
+        text.setAttribute("font-weight", "bold");
+        text.setAttribute("font-family", "Arial");
+        text.textContent = labelText;
+
+        // Ajouter au calque
+        group.appendChild(rect);
+        group.appendChild(text);
+        layer.appendChild(group);
       }
     }
   });
@@ -943,35 +1097,61 @@ function startDrag(e) {
 function onDrag(e) {
   if (!activeDragId) return;
   e.preventDefault();
+
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  
+  // Calcul du déplacement brut
   const deltaX = (clientX - dragStartX) / currentZoom;
   const deltaY = (clientY - dragStartY) / currentZoom;
 
+  // --- FONCTION MAGIQUE DE SNAP ---
+  // Elle arrondit la valeur à la grille la plus proche
+  const snap = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE;
+
   if (Object.keys(multiDragInitialPositions).length > 0) {
+    // Cas 1 : Déplacement de groupe
     Object.keys(multiDragInitialPositions).forEach((id) => {
       const eq = equipments.find((item) => item.id === id);
       if (eq) {
-        eq.x = Math.max(0, multiDragInitialPositions[id].x + deltaX);
-        eq.y = Math.max(0, multiDragInitialPositions[id].y + deltaY);
+        // On calcule la nouvelle position théorique
+        const rawX = multiDragInitialPositions[id].x + deltaX;
+        const rawY = multiDragInitialPositions[id].y + deltaY;
+        
+        // On applique le SNAP
+        eq.x = Math.max(0, snap(rawX));
+        eq.y = Math.max(0, snap(rawY));
+        
         const el = document.getElementById(id);
         if (el) { el.style.left = eq.x + "px"; el.style.top = eq.y + "px"; }
       }
     });
   } else {
+    // Cas 2 : Déplacement unique
     const eq = equipments.find((item) => item.id === activeDragId);
-    eq.x = Math.max(0, initialObjX + deltaX);
-    eq.y = Math.max(0, initialObjY + deltaY);
+    
+    // On calcule la nouvelle position théorique
+    const rawX = initialObjX + deltaX;
+    const rawY = initialObjY + deltaY;
+
+    // On applique le SNAP
+    eq.x = Math.max(0, snap(rawX));
+    eq.y = Math.max(0, snap(rawY));
+    
     const el = document.getElementById(activeDragId);
     el.style.left = eq.x + "px";
     el.style.top = eq.y + "px";
   }
+  
   updateConnectionsOnly();
 }
 
 function endDrag() {
-  activeDragId = null;
-  markAsUnsaved();
+  if (activeDragId) { // On vérifie qu'on a bien bougé quelque chose
+        activeDragId = null;
+        markAsUnsaved();
+        saveState(); // <--- AJOUTER ICI
+    }
   document.removeEventListener("mousemove", onDrag);
   document.removeEventListener("touchmove", onDrag);
   document.removeEventListener("mouseup", endDrag);
@@ -1381,6 +1561,7 @@ function addEquipment() {
   markAsUnsaved();
   selectedEquipmentId = null;
   updateFloatingButtons();
+  saveState();
   render();
   closeAddModal();
 }
@@ -1469,6 +1650,7 @@ function handlePenModeClick(equipmentId) {
       const parentNode = document.getElementById(parentId);
       if (parentNode) { parentNode.style.border = ""; parentNode.style.boxShadow = ""; }
       markAsUnsaved();
+      saveState();
       render();
       penFirstEquipment = null;
     }
@@ -1496,23 +1678,46 @@ function toggleSelectionMode() {
 
 
 function processBulkDelete(start, end) {
-  const minX = Math.min(start.x, end.x); const maxX = Math.max(start.x, end.x);
-  const minY = Math.min(start.y, end.y); const maxY = Math.max(start.y, end.y);
+  // 1. Calcul des limites de la zone
+  const minX = Math.min(start.x, end.x);
+  const maxX = Math.max(start.x, end.x);
+  const minY = Math.min(start.y, end.y);
+  const maxY = Math.max(start.y, end.y);
+
+  // 2. Trouver les équipements dans la zone
   const toDelete = equipments.filter((eq) => {
-    const centerX = eq.x + 80; const centerY = eq.y + 60;
+    const centerX = eq.x + 80;
+    const centerY = eq.y + 60;
     return centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY;
   });
-  if (toDelete.length === 0) { showToast("Aucun équipement sélectionné"); return; }
-  if (confirm(`Voulez-vous supprimer ces ${toDelete.length} équipements sélectionnés ?`)) {
-    const idsToDelete = toDelete.map((eq) => eq.id);
-    equipments = equipments.filter((eq) => !idsToDelete.includes(eq.id));
-    equipments.forEach((eq) => {
-      if (idsToDelete.includes(eq.parent)) eq.parent = null;
-      if (idsToDelete.includes(eq.linkedTo)) delete eq.linkedTo;
-    });
-    markAsUnsaved(); render();
-    showToast(`🗑️ ${toDelete.length} équipements supprimés`);
+
+  // 3. Si vide, on arrête
+  if (toDelete.length === 0) {
+    showToast("Aucun équipement sélectionné");
+    return;
   }
+
+  // --- 4. SUPPRESSION DIRECTE (SANS CONFIRMATION) ---
+  
+  // Récupérer les IDs à supprimer
+  const idsToDelete = toDelete.map((eq) => eq.id);
+
+  // Filtrer le tableau principal pour ne garder que ce qui n'est PAS à supprimer
+  equipments = equipments.filter((eq) => !idsToDelete.includes(eq.id));
+
+  // Nettoyer les liens orphelins (si un équipement restant était connecté à un supprimé)
+  equipments.forEach((eq) => {
+    if (idsToDelete.includes(eq.parent)) eq.parent = null;
+    if (idsToDelete.includes(eq.linkedTo)) delete eq.linkedTo;
+  });
+
+  // Si vous avez ajouté la fonction d'historique (Undo/Redo), activez cette ligne :
+  if (typeof saveState === "function") saveState();
+
+  // 5. Mise à jour de l'affichage
+  markAsUnsaved();
+  render();
+  showToast(`🗑️ ${toDelete.length} équipements supprimés`);
 }
 
 document.addEventListener("keydown", function (e) {
@@ -1617,6 +1822,7 @@ function setConnectionStyle(styleType) {
   };
   eq.connectionStyle = styles[styleType];
   markAsUnsaved();
+  saveState();
   render();
   closeConnectionMenu();
   showToast(`✅ Connexion modifiée : ${styleType === "ethernet" ? "Ethernet" : styleType === "radio" ? "Radio" : "Fibre"}`);
@@ -1624,17 +1830,16 @@ function setConnectionStyle(styleType) {
 
 function deleteConnection() {
   if (!selectedConnectionId) return;
-  if (confirm("Supprimer cette connexion ?\n\nL'équipement deviendra indépendant.")) {
     const eq = equipments.find((e) => e.id === selectedConnectionId);
     if (eq) {
       eq.parent = null;
       delete eq.connectionStyle;
       markAsUnsaved();
+      saveState();
       render();
       closeConnectionMenu();
       showToast("🔗 Connexion supprimée");
     }
-  }
 }
 
 /**
@@ -1675,6 +1880,7 @@ function reformatConnection() {
   childEq.controlPoints = generateCleanControlPointsForReformat(parentEq, childEq);
   
   markAsUnsaved();
+  saveState()
   render();
   closeConnectionMenu();
   showToast("✨ Connexion mise en forme avec succès !");
@@ -1852,11 +2058,15 @@ function processPhoto(input) {
 
 function deleteThisEquipment(id, event) {
   event.stopPropagation();
-  if (confirm("Supprimer cet équipement ?")) {
-    equipments = equipments.filter(e => e.id !== id);
-    equipments.forEach(e => { if (e.parent === id) e.parent = null; });
-    render(); markAsUnsaved();
-  }
+  
+  // On supprime directement sans demander
+  equipments = equipments.filter(e => e.id !== id);
+  equipments.forEach(e => { if (e.parent === id) e.parent = null; });
+  
+  saveState();
+  render(); 
+  markAsUnsaved();
+  showToast("🗑️ Équipement supprimé"); // Petit feedback visuel sympa à la place
 }
 
 function openPhotoViewer(photoData) {
@@ -1869,7 +2079,6 @@ function closePhotoViewer() {
 }
 
 function deleteCurrentPhoto() {
-  if (confirm("Supprimer cette photo ?")) {
     if (selectedEquipmentId) {
       const eq = equipments.find((e) => e.id === selectedEquipmentId);
       if (eq && eq.photo) {
@@ -1880,7 +2089,6 @@ function deleteCurrentPhoto() {
         showToast("Photo supprimée");
       }
     }
-  }
 }
 
 /* ==========================================================================
@@ -1998,4 +2206,58 @@ function updateSelectionBox(e, startX, startY) {
   box.style.height = height + "px";
   box.style.left = left + "px";
   box.style.top = top + "px";
+}
+
+/* ==========================================================================
+   EXPORT EXCEL
+   ========================================================================== */
+function exportToExcel() {
+    // 1. Vérification
+    if (!equipments || equipments.length === 0) {
+        showToast("⚠️ Aucun équipement à exporter");
+        return;
+    }
+
+    const siteName = document.getElementById("siteName").value || "Inventaire";
+
+    // 2. Préparation des données
+    // On clone et on trie pour avoir un Excel organisé (par type, puis par nom)
+    const sortedEquipments = [...equipments].sort((a, b) => {
+        if (a.type !== b.type) return a.type.localeCompare(b.type);
+        return a.deviceName.localeCompare(b.deviceName);
+    });
+
+    // 3. Mapping des colonnes demandées
+    const data = sortedEquipments.map(eq => ({
+        "Adresse IP": eq.ip || "",
+        "Nom de l'équipement": eq.deviceName || "",
+        "Localisation": eq.loc || "",
+        "Mot de passe": "" // Colonne vide demandée
+    }));
+
+    // 4. Génération du fichier Excel
+    // Création d'une feuille de calcul (Worksheet)
+    const ws = XLSX.utils.json_to_sheet(data);
+
+    // Ajustement automatique de la largeur des colonnes (Optionnel mais plus pro)
+    const wscols = [
+        {wch: 15}, // Largeur IP
+        {wch: 25}, // Largeur Nom
+        {wch: 25}, // Largeur Loc
+        {wch: 20}  // Largeur Mdp
+    ];
+    ws['!cols'] = wscols;
+
+    // Création du classeur (Workbook)
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventaire Réseau");
+
+    // 5. Téléchargement
+    try {
+        XLSX.writeFile(wb, `${siteName}_Inventaire.xlsx`);
+        showToast("✅ Export Excel réussi !");
+    } catch (error) {
+        console.error(error);
+        showToast("❌ Erreur lors de l'export Excel");
+    }
 }
