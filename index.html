@@ -113,6 +113,16 @@
           <span class="btn-label">Sauver</span>
         </button>
 
+        <button 
+          class="header-btn-labeled bouton-poubelle" 
+          style="margin-left: auto;" 
+          onclick="if(confirm('Tout effacer...')) clearBrowserSave()" 
+         title="Nouveau Projet"
+          >
+          <span class="btn-icon">🗑️</span>
+          <span class="btn-label">Nouveau</span>
+        </button>
+
         <button
           class="header-btn-labeled open-btn"
           onclick="triggerLoad()"
@@ -185,13 +195,13 @@
             <span class="btn-icon">📊</span>
             <span class="btn-label">Export Excel</span>
         </button>
-      </div>
+      </div>    
 
       <input
         type="text"
         id="siteName"
         class="site-name-input"
-        placeholder="Nom du site *"
+        placeholder="-- Nom du site --"
         oninput="checkInput()"
       />
     </div>
