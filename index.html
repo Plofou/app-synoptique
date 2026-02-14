@@ -10,6 +10,7 @@
     <link rel="icon" href="assets/myco.png" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -26,8 +27,8 @@
 
   <!-- LOGO AU-DESSUS DU GRADIENT -->
   <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <img src="assets/myco.png"
-         class="w-[700px] max-w-[80%] opacity-4.5 select-none" />
+    <img src="assets/myco2.png"
+         class="w-[1050px] max-w-[80%] opacity-10 select-none" />
   </div>
 
   <!-- CONTENU -->
@@ -44,10 +45,12 @@
         id="pass-field"
         maxlength="4"
         placeholder="Code"
+        autofocus
+        onkeydown="if(event.key === 'Enter') checkPass()"
         class="w-full py-3 rounded-2xl text-center text-white
-               bg-white/10 backdrop-blur-md
-               outline-none transition duration-300
-               focus:bg-white/20 focus:shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+                bg-white/10 backdrop-blur-md
+                outline-none transition duration-300
+                focus:bg-white/20 focus:shadow-[0_0_15px_rgba(255,255,255,0.3)]"
       />
 
       <button onclick="checkPass()"
@@ -166,6 +169,21 @@
         >
           <span class="btn-icon">✏️</span>
           <span class="btn-label">Liens</span>
+        </button>
+
+        <button class="header-btn-labeled" id="btnUndo" onclick="undo()" title="Annuler (Ctrl+Z)" disabled style="opacity:0.5;">
+            <span class="btn-icon">↩️</span>
+            <span class="btn-label">Annuler</span>
+        </button>
+
+        <button class="header-btn-labeled" id="btnRedo" onclick="redo()" title="Rétablir (Ctrl+Y)" disabled style="opacity:0.5;">
+            <span class="btn-icon">↪️</span>
+            <span class="btn-label">Rétablir</span>
+        </button>
+
+        <button class="header-btn-labeled excel-btn" onclick="exportToExcel()" title="Exporter inventaire (.xlsx)">
+            <span class="btn-icon">📊</span>
+            <span class="btn-label">Export Excel</span>
         </button>
       </div>
 
