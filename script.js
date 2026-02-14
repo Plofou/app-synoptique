@@ -19,6 +19,8 @@ let penFirstEquipment = null;
 let isMultiSelectMode = false;
 let multiSelectedIds = [];
 let multiSelectStart = null;
+let multiDragInitialPositions = {};
+let multiDragControlPoints = {}; // <--- AJOUTER CETTE LIGNE
 
 const GRID_SIZE = 30; // Taille de la grille magnétique
 
@@ -125,6 +127,10 @@ document.addEventListener("keydown", function(e) {
 // NOUVEAU : Variables pour les poignées de contrôle
 let isDraggingHandle = false;
 let draggedHandle = null;
+
+// NOUVEAU : Variables pour la création de liens depuis les ports
+let isCreatingLink = false;
+let linkStartData = null; // Stocke { id, portIndex }
 
 const presetsByType = {
   bullet: {
@@ -640,7 +646,7 @@ function updateConnectionsOnly() {
 
         // NOUVEAU : Afficher les poignées si ce lien est sélectionné
         if (selectedConnectionId === eq.id) {
-          drawControlHandles(eq, layer);
+          drawControlHandles(eq, layer);// Les points bleus (courbe
           drawPortHandles(eq, parent, layer); // Poignées orange aux extrémités
         }
       }
@@ -1011,17 +1017,17 @@ function render() {
 /* ==========================================================================
    NOUVEAU : AFFICHAGE DES 20 PORTS SUR LES ÉQUIPEMENTS
    ========================================================================== */
+/* CORRECTION DE LA FONCTION SHOWPORTS */
 function showPorts(equipment, nodeElement) {
   const portsContainer = nodeElement.querySelector('.ports-container');
   if (!portsContainer) return;
   
   portsContainer.innerHTML = '';
   
-  // Dessiner les 20 ports
   for (let i = 0; i < 20; i++) {
     const portPos = getPortPosition(equipment, i);
     
-    // Position relative au node
+    // Calcul de la position relative
     const relX = portPos.x - equipment.x;
     const relY = portPos.y - equipment.y;
     
@@ -1029,11 +1035,20 @@ function showPorts(equipment, nodeElement) {
     portDot.className = 'port-dot';
     portDot.style.left = relX + 'px';
     portDot.style.top = relY + 'px';
-    portDot.dataset.portIndex = i;
     
-    // Vérifier si ce port est utilisé
-    const isUsed = isPortUsed(equipment.id, i);
-    if (isUsed) {
+    // Stocker les infos dans le DOM pour les retrouver facilement
+    portDot.dataset.eqId = equipment.id;
+    portDot.dataset.portIndex = i;
+
+    // Événement Souris : Démarrer la création de lien
+    portDot.addEventListener("mousedown", (e) => {
+        e.stopPropagation(); // Empêche de bouger l'équipement
+        e.preventDefault();  // Empêche la sélection de texte
+        startLinkCreation(equipment.id, i, e); // <--- LANCE LA CRÉATION
+    });
+    
+    // Feedback visuel si le port est utilisé
+    if (isPortUsed(equipment.id, i)) {
       portDot.classList.add('port-used');
     }
     
@@ -1063,29 +1078,148 @@ function isPortUsed(equipmentId, portIndex) {
 }
 
 /* ==========================================================================
+   NOUVEAU : CRÉATION DE LIENS (DRAG & DROP DEPUIS LES PORTS VERTS)
+   ========================================================================== */
+
+function startLinkCreation(eqId, portIndex, e) {
+  isCreatingLink = true;
+  linkStartData = { id: eqId, portIndex: portIndex };
+  
+  // Créer une ligne temporaire visuelle
+  const svg = document.getElementById("connections-layer");
+  tempLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  tempLine.setAttribute("stroke", "#34C759"); // Vert
+  tempLine.setAttribute("stroke-width", "3");
+  tempLine.setAttribute("stroke-dasharray", "5,5");
+  tempLine.setAttribute("pointer-events", "none"); // Important pour cliquer au travers
+  svg.appendChild(tempLine);
+
+  // Position de départ
+  const startEq = equipments.find(e => e.id === eqId);
+  const startPos = getPortPosition(startEq, portIndex);
+  
+  tempLine.setAttribute("x1", startPos.x);
+  tempLine.setAttribute("y1", startPos.y);
+  tempLine.setAttribute("x2", startPos.x);
+  tempLine.setAttribute("y2", startPos.y);
+
+  // Ajouter les écouteurs globaux
+  document.addEventListener("mousemove", onLinkMove);
+  document.addEventListener("mouseup", onLinkUp);
+}
+
+function onLinkMove(e) {
+  if (!isCreatingLink || !tempLine) return;
+  
+  const container = document.getElementById("workspace-container");
+  const rect = container.getBoundingClientRect();
+  
+  // Coordonnées souris corrigées du zoom
+  const mouseX = (e.clientX - rect.left) / currentZoom;
+  const mouseY = (e.clientY - rect.top) / currentZoom;
+  
+  tempLine.setAttribute("x2", mouseX);
+  tempLine.setAttribute("y2", mouseY);
+}
+
+function onLinkUp(e) {
+  if (!isCreatingLink) return;
+
+  // 1. Nettoyage
+  if (tempLine) tempLine.remove();
+  document.removeEventListener("mousemove", onLinkMove);
+  document.removeEventListener("mouseup", onLinkUp);
+  isCreatingLink = false;
+
+  // 2. Vérifier si on a relâché sur un port vert
+  // On utilise elementFromPoint pour trouver ce qu'il y a sous la souris
+  const targetEl = document.elementFromPoint(e.clientX, e.clientY);
+  
+  if (targetEl && targetEl.classList.contains('port-dot')) {
+      const targetEqId = targetEl.dataset.eqId;
+      const targetPortIndex = parseInt(targetEl.dataset.portIndex);
+      
+      // Sécurités
+      if (targetEqId === linkStartData.id) {
+          showToast("❌ Impossible de connecter un équipement à lui-même");
+          linkStartData = null;
+          return;
+      }
+
+      finishLinkCreation(linkStartData.id, linkStartData.portIndex, targetEqId, targetPortIndex);
+  }
+  
+  linkStartData = null;
+}
+
+function finishLinkCreation(sourceId, sourcePort, targetId, targetPort) {
+    const sourceEq = equipments.find(e => e.id === sourceId);
+    const targetEq = equipments.find(e => e.id === targetId);
+
+    // LOGIQUE PARENT / ENFANT
+    // Dans votre système actuel, l'enfant porte la référence du parent.
+    // On considère que celui sur lequel on a RELACHÉ la souris devient l'ENFANT.
+    // (Sauf s'il a déjà un parent, on demande confirmation)
+
+    if (targetEq.parent) {
+        if (!confirm(`Attention : ${targetEq.deviceName} est déjà connecté.\nVoulez-vous remplacer sa connexion ?`)) {
+            return;
+        }
+    }
+
+    // Appliquer la connexion
+    targetEq.parent = sourceId;
+    targetEq.sourcePort = sourcePort; // Le port du parent (Source)
+    targetEq.targetPort = targetPort; // Le port de l'enfant (Target)
+    
+    // Réinitialiser le style de courbe pour qu'il soit recalculé proprement
+    delete targetEq.controlPoints;
+
+    saveState();
+    render();
+    markAsUnsaved();
+    showToast(`✅ Connecté : ${sourceEq.deviceName} ➝ ${targetEq.deviceName}`);
+}
+
+/* ==========================================================================
    DRAG & DROP
    ========================================================================== */
 function startDrag(e) {
   if (isSelectionMode || isPenMode) return;
   if (e.target.classList.contains("quick-add-btn") || e.target.classList.contains("quick-delete-btn")) return;
+  if (e.target.classList.contains("port-dot")) return;
 
   activeDragId = e.currentTarget.id;
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
   dragStartX = clientX;
   dragStartY = clientY;
+  
   const eq = equipments.find((item) => item.id === activeDragId);
   initialObjX = eq.x;
   initialObjY = eq.y;
 
   if (multiSelectedIds.includes(activeDragId)) {
     multiDragInitialPositions = {};
+    multiDragControlPoints = {}; // Réinitialiser
+
     multiSelectedIds.forEach((id) => {
       const equipment = equipments.find((e) => e.id === id);
-      if (equipment) multiDragInitialPositions[id] = { x: equipment.x, y: equipment.y };
+      if (equipment) {
+        // 1. Sauver la position de l'objet
+        multiDragInitialPositions[id] = { x: equipment.x, y: equipment.y };
+
+        // 2. NEW : Sauver la position des points de contrôle (si le lien bouge aussi)
+        // On ne le fait que si l'équipement a un parent qui est AUSSI sélectionné
+        if (equipment.parent && multiSelectedIds.includes(equipment.parent) && equipment.controlPoints) {
+            // On fait une copie profonde du tableau pour ne pas modifier la référence
+            multiDragControlPoints[id] = equipment.controlPoints.map(p => ({ x: p.x, y: p.y }));
+        }
+      }
     });
   } else {
     multiDragInitialPositions = {};
+    multiDragControlPoints = {};
   }
 
   document.addEventListener("mousemove", onDrag);
@@ -1101,12 +1235,9 @@ function onDrag(e) {
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
   
-  // Calcul du déplacement brut
   const deltaX = (clientX - dragStartX) / currentZoom;
   const deltaY = (clientY - dragStartY) / currentZoom;
 
-  // --- FONCTION MAGIQUE DE SNAP ---
-  // Elle arrondit la valeur à la grille la plus proche
   const snap = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE;
 
   if (Object.keys(multiDragInitialPositions).length > 0) {
@@ -1114,27 +1245,40 @@ function onDrag(e) {
     Object.keys(multiDragInitialPositions).forEach((id) => {
       const eq = equipments.find((item) => item.id === id);
       if (eq) {
-        // On calcule la nouvelle position théorique
+        // Calcul de la nouvelle position
         const rawX = multiDragInitialPositions[id].x + deltaX;
         const rawY = multiDragInitialPositions[id].y + deltaY;
         
-        // On applique le SNAP
-        eq.x = Math.max(0, snap(rawX));
-        eq.y = Math.max(0, snap(rawY));
+        const newX = Math.max(0, snap(rawX));
+        const newY = Math.max(0, snap(rawY));
+
+        // Calcul du déplacement RÉEL (après snap grille) pour l'appliquer aux courbes
+        const effectiveMoveX = newX - multiDragInitialPositions[id].x;
+        const effectiveMoveY = newY - multiDragInitialPositions[id].y;
+
+        eq.x = newX;
+        eq.y = newY;
         
         const el = document.getElementById(id);
         if (el) { el.style.left = eq.x + "px"; el.style.top = eq.y + "px"; }
+
+        // --- NEW : Déplacer aussi les points de contrôle (courbes) ---
+        if (multiDragControlPoints[id]) {
+            eq.controlPoints = multiDragControlPoints[id].map(p => ({
+                x: p.x + effectiveMoveX,
+                y: p.y + effectiveMoveY
+            }));
+        }
+        // -------------------------------------------------------------
       }
     });
   } else {
     // Cas 2 : Déplacement unique
     const eq = equipments.find((item) => item.id === activeDragId);
     
-    // On calcule la nouvelle position théorique
     const rawX = initialObjX + deltaX;
     const rawY = initialObjY + deltaY;
 
-    // On applique le SNAP
     eq.x = Math.max(0, snap(rawX));
     eq.y = Math.max(0, snap(rawY));
     
@@ -1677,6 +1821,9 @@ function toggleSelectionMode() {
 }
 
 
+/* ==========================================================================
+   SUPPRESSION DE ZONE (ÉQUIPEMENTS + LIENS)
+   ========================================================================== */
 function processBulkDelete(start, end) {
   // 1. Calcul des limites de la zone
   const minX = Math.min(start.x, end.x);
@@ -1684,50 +1831,72 @@ function processBulkDelete(start, end) {
   const minY = Math.min(start.y, end.y);
   const maxY = Math.max(start.y, end.y);
 
-  // 2. Trouver les équipements dans la zone
-  const toDelete = equipments.filter((eq) => {
+  // --- ÉTAPE A : Identifier les ÉQUIPEMENTS à supprimer ---
+  const nodesToDelete = equipments.filter((eq) => {
     const centerX = eq.x + 80;
     const centerY = eq.y + 60;
     return centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY;
   });
+  
+  const idsToDelete = nodesToDelete.map((eq) => eq.id);
 
-  // 3. Si vide, on arrête
-  if (toDelete.length === 0) {
-    showToast("Aucun équipement sélectionné");
+  // --- ÉTAPE B : Identifier les LIENS à couper ---
+  // On cherche les équipements qui NE sont PAS supprimés, mais dont le lien passe dans la zone
+  let linksDeletedCount = 0;
+
+  equipments.forEach(eq => {
+      // Si l'équipement lui-même va être supprimé, pas besoin de traiter son lien ici
+      if (idsToDelete.includes(eq.id)) return;
+
+      // Si l'équipement a un parent (donc un lien) ET des points de contrôle
+      if (eq.parent && eq.controlPoints) {
+          // On vérifie si UN des 3 points de contrôle est dans le carré rouge
+          const isLinkSelected = eq.controlPoints.some(p => 
+              p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY
+          );
+
+          if (isLinkSelected) {
+              // On coupe le lien !
+              eq.parent = null;
+              delete eq.sourcePort;
+              delete eq.targetPort;
+              delete eq.controlPoints;
+              delete eq.connectionStyle;
+              linksDeletedCount++;
+          }
+      }
+  });
+
+  // Si rien n'est sélectionné du tout
+  if (idsToDelete.length === 0 && linksDeletedCount === 0) {
+    showToast("Rien à supprimer dans la zone");
     return;
   }
 
-  // --- 4. SUPPRESSION DIRECTE (SANS CONFIRMATION) ---
-  
-  // Récupérer les IDs à supprimer
-  const idsToDelete = toDelete.map((eq) => eq.id);
+  // --- ÉTAPE C : APPLIQUER LA SUPPRESSION DES ÉQUIPEMENTS ---
+  if (idsToDelete.length > 0) {
+      equipments = equipments.filter((eq) => !idsToDelete.includes(eq.id));
 
-  // Filtrer le tableau principal pour ne garder que ce qui n'est PAS à supprimer
-  equipments = equipments.filter((eq) => !idsToDelete.includes(eq.id));
-
-  // Nettoyer les liens orphelins (si un équipement restant était connecté à un supprimé)
-  equipments.forEach((eq) => {
-    if (idsToDelete.includes(eq.parent)) eq.parent = null;
-    if (idsToDelete.includes(eq.linkedTo)) delete eq.linkedTo;
-  });
-
-  // Si vous avez ajouté la fonction d'historique (Undo/Redo), activez cette ligne :
-  if (typeof saveState === "function") saveState();
-
-  // 5. Mise à jour de l'affichage
-  markAsUnsaved();
-  render();
-  showToast(`🗑️ ${toDelete.length} équipements supprimés`);
-}
-
-document.addEventListener("keydown", function (e) {
-  if (e.key === "Escape") {
-    if (isSelectionMode) toggleSelectionMode();
-    if (isPenMode) { showToast("✏️ Mode Stylo désactivé"); togglePenMode(); }
-    if (isMultiSelectMode) { showToast("⬚ Mode Sélection désactivé"); toggleMultiSelectMode(); }
-    if (multiSelectedIds.length > 0) clearMultiSelection();
+      // Nettoyer les orphelins
+      equipments.forEach((eq) => {
+        if (idsToDelete.includes(eq.parent)) eq.parent = null;
+        if (idsToDelete.includes(eq.linkedTo)) delete eq.linkedTo;
+      });
   }
-});
+
+  // Sauvegarde et Rendu
+  saveState();
+  render();
+  markAsUnsaved();
+  
+  // Message adapté
+  let msg = "🗑️ Supprimé : ";
+  if (idsToDelete.length > 0) msg += `${idsToDelete.length} équipement(s) `;
+  if (idsToDelete.length > 0 && linksDeletedCount > 0) msg += "et ";
+  if (linksDeletedCount > 0) msg += `${linksDeletedCount} lien(s)`;
+  
+  showToast(msg);
+}
 
 function processMultiSelect(start, end) {
   const minX = Math.min(start.x, end.x); const maxX = Math.max(start.x, end.x);
@@ -1743,11 +1912,15 @@ function processMultiSelect(start, end) {
     else node.classList.remove("multi-selected");
   });
   showToast(`✅ ${multiSelectedIds.length} équipement(s) sélectionné(s)\n\nVous pouvez maintenant les déplacer ensemble`);
+  if (multiSelectedIds.length > 1) {
+        document.getElementById("alignToolbar").style.display = "flex";
+  }
 }
 
 function clearMultiSelection() {
   multiSelectedIds = [];
   document.querySelectorAll(".node").forEach((node) => { node.classList.remove("multi-selected"); });
+  document.getElementById("alignToolbar").style.display = "none";
 }
 
 function toggleMultiSelectMode() {
@@ -1962,48 +2135,51 @@ function calculateOptimalPortsForReformat(parentNode, childNode, totalChildren, 
  * Génère des points de contrôle propres pour le reformatage
  * Crée des lignes droites en _|_ sans chevauchement
  */
+/* CORRECTION DE LA LOGIQUE DE REFORMATAGE */
 function generateCleanControlPointsForReformat(parentNode, childNode) {
-  const sourcePos = getPortPosition(parentNode, childNode.sourcePort || 12);
-  const targetPos = getPortPosition(childNode, childNode.targetPort || 2);
+  // On s'assure d'avoir des ports par défaut si indéfinis
+  const srcPortIdx = childNode.sourcePort !== undefined ? childNode.sourcePort : 12;
+  const tgtPortIdx = childNode.targetPort !== undefined ? childNode.targetPort : 2;
+
+  const sourcePos = getPortPosition(parentNode, srcPortIdx);
+  const targetPos = getPortPosition(childNode, tgtPortIdx);
   
   const deltaY = targetPos.y - sourcePos.y;
   const deltaX = targetPos.x - sourcePos.x;
-  const sourcePort = childNode.sourcePort || 12;
   
-  // BOTTOM : Descente verticale puis horizontale (_|_)
-  if (sourcePort >= 10 && sourcePort <= 14) {
-    const verticalDistance = Math.abs(deltaY) * 0.6;
-    const midY = sourcePos.y + verticalDistance;
+  // BOTTOM (Ports 10 à 14) : Descente verticale puis horizontale
+  if (srcPortIdx >= 10 && srcPortIdx <= 14) {
+    // On descend de 60% de la distance ou au moins 40px
+    const verticalDrop = Math.max(40, Math.abs(deltaY) * 0.5); 
+    const midY = sourcePos.y + verticalDrop;
     
     return [
-      { x: sourcePos.x, y: midY },
-      { x: targetPos.x, y: midY },
-      { x: targetPos.x, y: targetPos.y }
+      { x: sourcePos.x, y: midY },      // Point 1 : Descend tout droit
+      { x: targetPos.x, y: midY },      // Point 2 : Va à l'horizontale vers la cible
+      { x: targetPos.x, y: targetPos.y } // Point 3 : Arrive à la cible
     ];
   }
-  // RIGHT : Sortie droite, descente, arrivée
-  else if (sourcePort >= 5 && sourcePort <= 9) {
+  // RIGHT (Ports 5 à 9)
+  else if (srcPortIdx >= 5 && srcPortIdx <= 9) {
     const horizontalOut = 60;
     const midY = sourcePos.y + (deltaY * 0.5);
-    
     return [
       { x: sourcePos.x + horizontalOut, y: sourcePos.y },
       { x: sourcePos.x + horizontalOut, y: midY },
       { x: targetPos.x, y: targetPos.y }
     ];
   }
-  // LEFT : Sortie gauche, descente, arrivée
-  else if (sourcePort >= 15 && sourcePort <= 19) {
+  // LEFT (Ports 15 à 19)
+  else if (srcPortIdx >= 15 && srcPortIdx <= 19) {
     const horizontalOut = 60;
     const midY = sourcePos.y + (deltaY * 0.5);
-    
     return [
       { x: sourcePos.x - horizontalOut, y: sourcePos.y },
       { x: sourcePos.x - horizontalOut, y: midY },
       { x: targetPos.x, y: targetPos.y }
     ];
   }
-  // TOP : Montée puis redescente
+  // TOP (Ports 0 à 4)
   else {
     const midY = sourcePos.y - 60;
     return [
@@ -2261,3 +2437,143 @@ function exportToExcel() {
         showToast("❌ Erreur lors de l'export Excel");
     }
 }
+
+/* ==========================================================================
+   GESTION DES POIGNÉES ORANGES (MODIFICATION DES LIENS)
+   ========================================================================== */
+
+// Variables pour le drag orange
+let isDraggingOrange = false;
+let draggedOrangeData = null;
+let orangeTempLine = null;
+
+function drawPortHandles(equipment, parentEquipment, svg) {
+  // 1. Poignée Source (Côté Parent)
+  // On utilise '|| 12' comme sécurité si le port n'est pas défini
+  const sourcePos = getPortPosition(parentEquipment, equipment.sourcePort !== undefined ? equipment.sourcePort : 12);
+  createHandleCircle(svg, sourcePos.x, sourcePos.y, equipment.id, "source");
+
+  // 2. Poignée Cible (Côté Enfant)
+  // On utilise '|| 2' comme sécurité
+  const targetPos = getPortPosition(equipment, equipment.targetPort !== undefined ? equipment.targetPort : 2);
+  createHandleCircle(svg, targetPos.x, targetPos.y, equipment.id, "target");
+}
+
+function createHandleCircle(svg, cx, cy, eqId, type) {
+  const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  handle.setAttribute("cx", cx);
+  handle.setAttribute("cy", cy);
+  handle.setAttribute("r", 7); // Taille de la boule
+  handle.setAttribute("fill", "#FF9500"); // Orange
+  handle.setAttribute("stroke", "white");
+  handle.setAttribute("stroke-width", 2);
+  handle.style.cursor = "grab";
+  handle.style.pointerEvents = "all"; 
+
+  // C'est ici qu'on empêche le conflit avec le déplacement de l'objet
+  handle.addEventListener("mousedown", (e) => {
+    e.stopPropagation(); // STOP : Ne pas bouger l'équipement
+    e.preventDefault();
+    startDraggingPortHandle(eqId, type, e);
+  });
+
+  svg.appendChild(handle);
+}
+
+function startDraggingPortHandle(equipmentId, endType, e) {
+  isDraggingOrange = true;
+  draggedOrangeData = { equipmentId, endType };
+  
+  // Créer une ligne visuelle temporaire (Orange)
+  const svg = document.getElementById("connections-layer");
+  orangeTempLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  orangeTempLine.setAttribute("stroke", "#FF9500");
+  orangeTempLine.setAttribute("stroke-width", "3");
+  orangeTempLine.setAttribute("stroke-dasharray", "5,5");
+  svg.appendChild(orangeTempLine);
+
+  // On récupère les positions pour dessiner la ligne temporaire
+  const eq = equipments.find(e => e.id === equipmentId);
+  const parent = equipments.find(e => e.id === eq.parent);
+  
+  let fixedX, fixedY;
+  
+  // Si on bouge la source, le point fixe est la cible (et inversement)
+  if (endType === "source") {
+      const p = getPortPosition(eq, eq.targetPort !== undefined ? eq.targetPort : 2);
+      fixedX = p.x; fixedY = p.y;
+  } else {
+      const p = getPortPosition(parent, eq.sourcePort !== undefined ? eq.sourcePort : 12);
+      fixedX = p.x; fixedY = p.y;
+  }
+  
+  orangeTempLine.setAttribute("x1", fixedX);
+  orangeTempLine.setAttribute("y1", fixedY);
+  orangeTempLine.setAttribute("x2", fixedX); // Suivra la souris
+  orangeTempLine.setAttribute("y2", fixedY);
+
+  document.addEventListener("mousemove", onOrangeMove);
+  document.addEventListener("mouseup", onOrangeUp);
+}
+
+function onOrangeMove(e) {
+  if (!isDraggingOrange || !orangeTempLine) return;
+  
+  const container = document.getElementById("workspace-container");
+  const rect = container.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / currentZoom;
+  const y = (e.clientY - rect.top) / currentZoom;
+  
+  orangeTempLine.setAttribute("x2", x);
+  orangeTempLine.setAttribute("y2", y);
+}
+
+function onOrangeUp(e) {
+  if (!isDraggingOrange) return;
+  
+  // Nettoyage
+  if (orangeTempLine) orangeTempLine.remove();
+  document.removeEventListener("mousemove", onOrangeMove);
+  document.removeEventListener("mouseup", onOrangeUp);
+  isDraggingOrange = false;
+
+  // Détection du port sous la souris (Vert ou autre)
+  const targetEl = document.elementFromPoint(e.clientX, e.clientY);
+  
+  if (targetEl && targetEl.classList.contains('port-dot')) {
+      const targetEqId = targetEl.dataset.eqId;
+      const targetPortIndex = parseInt(targetEl.dataset.portIndex);
+      const eq = equipments.find(e => e.id === draggedOrangeData.equipmentId);
+
+      // Logique de rebranchement
+      if (draggedOrangeData.endType === "source") {
+          // On change le PARENT (Source)
+          if (targetEqId === eq.id) {
+             // Protection : pas de boucle sur soi-même
+             return; 
+          }
+          
+          eq.parent = targetEqId;
+          eq.sourcePort = targetPortIndex;
+          showToast("🔗 Source modifiée !");
+          
+      } else {
+          // On change la CIBLE (Target)
+          // La cible DOIT rester sur le même équipement, on change juste de port
+          if (targetEqId !== eq.id) {
+             showToast("❌ L'extrémité cible doit rester sur le même équipement");
+             return;
+          }
+          eq.targetPort = targetPortIndex;
+          showToast("🎯 Cible déplacée !");
+      }
+
+      // Reset de la courbe bleue pour qu'elle se redessine proprement
+      delete eq.controlPoints;
+      
+      saveState();
+      render();
+      markAsUnsaved();
+  }
+}
+
