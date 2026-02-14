@@ -428,6 +428,7 @@ body.dark-mode .hp-name-field input {
   touch-action: none;
   height: auto;
   min-height: 120px;
+  overflow: visible !important;
   transition:
     background-color 0.3s,
     border-color 0.3s;
@@ -1025,17 +1026,6 @@ body.dark-mode #connectionMenu > div {
   cursor: pointer !important;
 }
 
-#connections-layer path[stroke="transparent"]:hover + path {
-  stroke-width: 5 !important; /* Trait plus épais au survol */
-  filter: drop-shadow(0 0 8px rgba(0, 122, 255, 0.6)) !important;
-  transition: all 0.2s ease;
-}
-
-/* Tous les paths visibles (liens) - effet de survol amélioré */
-#connections-layer path[fill="none"]:not([stroke="transparent"]) {
-  transition: stroke-width 0.2s ease, filter 0.2s ease;
-  pointer-events: none; /* Seul le hitArea est cliquable */
-}
 
 /* Animation au survol */
 @keyframes link-glow {
@@ -1073,25 +1063,34 @@ body.dark-mode #connectionMenu > div {
 }
 
 .port-dot {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #34C759;
-  border: 2px solid white;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  opacity: 0.9;
-  transition: all 0.2s ease;
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #34C759;
+    border: 2px solid white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    
+    /* CORRECTION 1 : Z-index très haut */
+    z-index: 10000 !important; 
+    opacity: 0.9;
+    transition: all 0.2s ease;
+    
+    /* Rendre le clic prioritaire */
+    pointer-events: auto;
+    cursor: crosshair;
 }
 
 .port-dot:hover {
-  width: 12px;
-  height: 12px;
-  background: #007AFF;
-  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.6);
-  opacity: 1;
-  z-index: 100;
+    width: 14px;
+    height: 14px;
+    background: #007AFF;
+    box-shadow: 0 2px 8px rgba(0,122,255,0.6);
+    opacity: 1;
+    
+    /* CORRECTION 2 : On augmente encore au survol (au lieu de baisser) */
+    z-index: 10001 !important; 
 }
 
 .port-dot.port-used {
@@ -1174,11 +1173,6 @@ body.dark-mode #connectionMenu > div {
   transition: stroke-width 0.2s ease;
 }
 
-#connections-layer path:hover {
-  stroke-width: 4 !important;
-  opacity: 0.8;
-}
-
 /* Indicateur de port survolé lors du rebranching */
 .hovered-port-indicator {
   position: absolute;
@@ -1251,4 +1245,51 @@ body.dark-mode .excel-btn:hover {
 body.dark-mode #workspace-container::before {
     opacity: 0.02; /* Encore plus discret sur fond noir */
     filter: grayscale(100%); /* Optionnel : logo en noir et blanc */
+}
+
+.floating-toolbar {
+    position: absolute;
+    top: 80px; /* Juste sous le header */
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 8px 15px;
+    border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    z-index: 20000; /* Au-dessus de tout */
+}
+
+.floating-toolbar button {
+    background: #f0f0f0;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    color: #333;
+}
+
+.floating-toolbar button:hover {
+    background: #007AFF;
+    color: white;
+}
+
+.separator {
+    width: 1px;
+    height: 20px;
+    background: #ccc;
+    margin: 0 5px;
+}
+
+/* Mode sombre */
+body.dark-mode .floating-toolbar {
+    background: #2c2c2e;
+    border: 1px solid #444;
+}
+body.dark-mode .floating-toolbar button {
+    background: #3a3a3c;
+    color: white;
 }
