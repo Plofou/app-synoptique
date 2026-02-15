@@ -2288,32 +2288,37 @@ function deleteCurrentPhoto() {
    ========================================================================== */
 
 function handleWorkspaceMouseDown(e) {
-  // 1. Si on clique sur un équipement ou une poignée, on ne fait rien ici (géré ailleurs)
-  if (e.target.closest(".node") || e.target.closest("circle") || e.target.tagName === "path") return;
+    // 1. Si on clique sur un équipement, une poignée ou un lien, on ne fait rien ici
+    if (e.target.closest(".node") || e.target.closest("circle") || e.target.tagName === "path") return;
 
-  // 2. Initialisation des coordonnées
-  const container = document.getElementById("workspace-container");
-  const rect = container.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / currentZoom;
-  const y = (e.clientY - rect.top) / currentZoom;
+    // Calculs de position pour les sélections
+    const container = document.getElementById("workspace-container");
+    const rect = container.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / currentZoom;
+    const y = (e.clientY - rect.top) / currentZoom;
 
-  // 3. Gestion selon le mode
-  if (isSelectionMode) {
-    // --- MODE SUPPRESSION (ZONE ROUGE) ---
-    startSelectionBox(x, y, "delete");
-    e.preventDefault(); // Empêche la sélection de texte
-  } 
-  else if (isMultiSelectMode) {
-    // --- MODE MULTI-SÉLECTION (ZONE VIOLETTE) ---
-    startSelectionBox(x, y, "select");
-    e.preventDefault();
-  } 
-  else {
-    // --- MODE NORMAL ---
-    deselectAll(e);
-    clearMultiSelection();
-    closeConnectionMenu();
-  }
+    // --- LOGIQUE DE DÉCISION ---
+    
+    if (isSelectionMode) {
+        // Mode Suppression (Carré Rouge)
+        startSelectionBox(x, y, "delete");
+        e.preventDefault();
+    } 
+    else if (isMultiSelectMode) {
+        // Mode Multi-Sélection (Carré Violet)
+        startSelectionBox(x, y, "select");
+        e.preventDefault();
+    } 
+    else {
+        // --- MODE NORMAL (MAIN) ---
+        // 1. On nettoie tout (désélection)
+        deselectAll();
+        if (typeof clearMultiSelection === 'function') clearMultiSelection();
+        closeConnectionMenu();
+        
+        // 2. C'EST ICI QU'ON LANCE LE DÉPLACEMENT
+        startPanning(e); 
+    }
 }
 
 // Fonction générique pour démarrer le tracé de la boîte
@@ -2614,3 +2619,83 @@ function clearBrowserSave() {
     localStorage.removeItem("myConnectName");
     location.reload(); // Recharge la page à zéro
 }
+
+/* ==========================================================================
+   GESTION COPIER / COLLER (CTRL+C / CTRL+V)
+   ========================================================================== */
+
+// Variable globale pour stocker l'objet copié
+let memoireTampon = null; 
+
+document.addEventListener('keydown', function(e) {
+    // 1. SÉCURITÉ : On ne fait rien si l'utilisateur écrit dans un champ texte
+    if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
+
+    // --- CTRL + C (COPIER) ---
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        if (selectedEquipmentId) {
+            const eq = equipments.find(item => item.id === selectedEquipmentId);
+            
+            if (eq) {
+                e.preventDefault();
+                // On copie les données dans la mémoire
+                memoireTampon = {
+                    type: eq.type,
+                    deviceName: eq.deviceName + " (Copie)", // On ajoute "Copie" au nom
+                    ip: eq.ip,
+                    loc: eq.loc,
+                    // Mettez 'null' ci-dessous si vous voulez que la copie soit détachée (sans fil)
+                    parent: eq.parent, 
+                    photo: eq.photo || null 
+                };
+                showToast("📋 Équipement copié !");
+            }
+        }
+    }
+
+    // --- CTRL + V (COLLER) ---
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        if (memoireTampon) {
+            e.preventDefault();
+
+            // On calcule le centre de l'écran pour coller l'objet là où on regarde
+            const wrapper = document.getElementById("workspace-wrapper");
+            // wrapper.scrollLeft = position de la barre de défilement horizontale
+            // + 300 = décalage pour être à peu près au milieu
+            const centerX = (wrapper.scrollLeft + 300) / currentZoom; 
+            const centerY = (wrapper.scrollTop + 300) / currentZoom;
+
+            // Création de l'objet via votre fonction existante
+            const newId = addSingleNode(
+                memoireTampon.type,
+                memoireTampon.deviceName,
+                memoireTampon.ip,
+                memoireTampon.loc,
+                memoireTampon.parent, 
+                centerX, // Position X calculée
+                centerY  // Position Y calculée
+            );
+
+            // Gestion de la photo (car addSingleNode ne la gère pas par défaut)
+            if (memoireTampon.photo) {
+                const newEq = equipments.find(e => e.id === newId);
+                if (newEq) {
+                    newEq.photo = memoireTampon.photo;
+                }
+            }
+
+            // Sauvegarde et affichage
+            saveState();       
+            render();          
+            markAsUnsaved();   
+            
+            // On sélectionne automatiquement le nouvel objet
+            deselectAll();
+            selectedEquipmentId = newId;
+            // On force un petit render pour afficher le cadre bleu de sélection
+            setTimeout(render, 50); 
+            
+            showToast("📋 Élément collé !");
+        }
+    }
+});
