@@ -237,15 +237,40 @@ input:checked + .slider:before {
   transform: scale(1.05);
 }
 
+/* Nouveau style "Titre de document" */
 .site-name-input {
-  flex: 0 0 auto;
-  width: 250px;
-  padding: 10px 15px;
-  border: 2px solid var(--primary);
-  border-radius: 8px;
-  font-size: 15px;
-  background: white;
-  margin-left: 0;
+    /* Mise en page */
+    flex: 0 0 auto;    /* On garde ça de votre ancien code pour la structure */
+    min-width: 250px;  /* On assure une largeur minimum */
+    
+    /* Le style "Invisible" par défaut */
+    background: transparent;
+    border: 1px solid transparent; 
+    
+    /* Typographie */
+    font-weight: bold;
+    font-size: 18px;
+    color: #333;
+    
+    /* Espacement */
+    padding: 5px 10px;
+    margin-left: 15px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+/* Quand on passe la souris dessus */
+.site-name-input:hover {
+    border: 1px solid #ccc;
+    background-color: rgba(0,0,0, 0.05); /* Gris très très clair */
+}
+
+/* Quand on clique dedans */
+.site-name-input:focus {
+    outline: none;
+    background-color: #fff;
+    border: 1px solid #007bff; /* Ou votre var(--primary) si vous préférez */
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 /* --- DARK MODE STYLES --- */
@@ -259,9 +284,20 @@ body.dark-mode .header {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 body.dark-mode .site-name-input {
-  background: #3a3a3a;
-  color: white;
-  border-color: #555;
+    color: #fff; /* Texte blanc */
+    background: transparent; /* Toujours transparent ! */
+    border-color: transparent;
+}
+
+/* On ajoute un effet au survol/focus SPÉCIFIQUE au mode sombre */
+body.dark-mode .site-name-input:hover {
+    background-color: rgba(255,255,255, 0.1); /* Blanc transparent */
+    border-color: #555;
+}
+
+body.dark-mode .site-name-input:focus {
+    background-color: #2c2c2c; /* Fond sombre quand on écrit */
+    border-color: #007bff;
 }
 body.dark-mode #workspace-container {
   background-color: #1a1a1a;
@@ -382,6 +418,7 @@ body.dark-mode .hp-name-field input {
   z-index: 1;
   background-color: var(--bg);
   transition: background-color 0.3s;
+  
 }
 
 #workspace-container {
@@ -1297,4 +1334,15 @@ body.dark-mode .floating-toolbar button {
 /* Supposons que votre bouton ait une classe spécifique ou un ID */
 .bouton-poubelle {
     margin-left: auto; /* Cela pousse l'élément (et ceux qui suivent) tout à droite */
+}
+
+/* Le conteneur principal qui a les barres de défilement */
+#workspace-wrapper {
+    cursor: grab; /* Affiche la main ouverte */
+    overflow: auto; /* Garde les barres de défilement (optionnel si vous voulez les cacher : hidden) */
+}
+
+/* Classe qu'on ajoutera en JS quand on clique */
+#workspace-wrapper.is-panning {
+    cursor: grabbing; /* Affiche la main fermée (agrippe) */
 }
