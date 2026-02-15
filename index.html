@@ -103,6 +103,14 @@
         <span class="status-text">Sauvegardé</span>
       </div>
 
+      <input
+        type="text"
+        id="siteName"
+        class="site-name-input"
+        placeholder="?-- Nom du site --?"
+        oninput="checkInput()"
+      />
+
       <div class="header-actions">
         <button
           class="header-btn-labeled save-btn"
@@ -130,16 +138,6 @@
         >
           <span class="btn-icon">📂</span>
           <span class="btn-label">Ouvrir</span>
-        </button>
-
-        <button
-          class="header-btn-labeled export-btn disabled"
-          id="btnDownload"
-          onclick="downloadPDF()"
-          title="Exporter en PDF"
-        >
-          <span class="btn-icon">⬇</span>
-          <span class="btn-label">Export PDF</span>
         </button>
 
         <button
@@ -195,15 +193,17 @@
             <span class="btn-icon">📊</span>
             <span class="btn-label">Export Excel</span>
         </button>
-      </div>    
 
-      <input
-        type="text"
-        id="siteName"
-        class="site-name-input"
-        placeholder="-- Nom du site --"
-        oninput="checkInput()"
-      />
+        <button
+          class="header-btn-labeled export-btn disabled"
+          id="btnDownload"
+          onclick="downloadPDF()"
+          title="Exporter en PDF"
+        >
+          <span class="btn-icon">⬇</span>
+          <span class="btn-label">Export PDF</span>
+        </button>
+      </div>    
     </div>
 
     <div class="floating-ui trash-zone">
