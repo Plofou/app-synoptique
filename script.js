@@ -20,7 +20,7 @@ let isMultiSelectMode = false;
 let multiSelectedIds = [];
 let multiSelectStart = null;
 let multiDragInitialPositions = {};
-let multiDragControlPoints = {}; // <--- AJOUTER CETTE LIGNE
+let multiDragWaypoints = {};
 
 const GRID_SIZE = 30; // Taille de la grille magnétique
 
@@ -73,6 +73,7 @@ function restoreState() {
     const stateStr = historyStack[historyStep];
     if (stateStr) {
         equipments = JSON.parse(stateStr);
+        migrateControlPointsToWaypoints();
         // On relance le rendu
         render();
         // On sauvegarde le statut (optionnel, pour dire que c'est "modifié")
@@ -388,6 +389,7 @@ window.addEventListener("load", function () {
       // Si on trouve des données, on les charge
       try {
           equipments = JSON.parse(savedData);
+          migrateControlPointsToWaypoints();
           if (savedName) document.getElementById("siteName").value = savedName;
           showToast("📂 Restauration de la dernière session");
       } catch (e) {
@@ -407,20 +409,32 @@ window.addEventListener("load", function () {
 });
 
 /* ==========================================================================
-   SAUVEGARDE & PDF
+   MISE À JOUR STATUT (VERSION APPLE MONOCHROME)
    ========================================================================== */
 function updateSaveStatus(saved) {
-  const statusEl = document.getElementById("saveStatus");
-  if (saved) {
-    statusEl.className = "save-status saved";
-    statusEl.innerHTML = '<span class="status-dot">🟢</span><span class="status-text">Sauvegardé</span>';
-    hasUnsavedChanges = false;
-    lastSaved = new Date();
-  } else {
-    statusEl.className = "save-status unsaved";
-    statusEl.innerHTML = '<span class="status-dot">🟡</span><span class="status-text">Non sauvegardé</span>';
-    hasUnsavedChanges = true;
-  }
+    const statusEl = document.getElementById("saveStatus");
+    
+    // On nettoie les classes d'état
+    statusEl.classList.remove("unsaved"); 
+    
+    if (saved) {
+        // CAS 1 : SAUVEGARDÉ
+        // On remet le style par défaut (gris)
+        // On change le HTML pour mettre le Nuage Validé
+        statusEl.innerHTML = '<i class="bi bi-cloud-check"></i> <span class="status-text">Synchronisé</span>';
+        
+        hasUnsavedChanges = false;
+        lastSaved = new Date();
+    } else {
+        // CAS 2 : NON SAUVEGARDÉ
+        // On ajoute la classe pour foncer le texte
+        statusEl.classList.add("unsaved");
+        
+        // On met le Nuage avec flèche (upload) ou points de suspension
+        statusEl.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> <span class="status-text">Modifié...</span>';
+        
+        hasUnsavedChanges = true;
+    }
 }
 
 function markAsUnsaved() { updateSaveStatus(false); }
@@ -442,6 +456,16 @@ function triggerLoad() {
   document.getElementById("fileLoader").click();
 }
 
+/** Migration rétrocompatible : convertit l'ancien controlPoints en waypoints */
+function migrateControlPointsToWaypoints() {
+  equipments.forEach(eq => {
+    if (eq.controlPoints && !eq.waypoints) {
+      eq.waypoints = eq.controlPoints;
+      delete eq.controlPoints;
+    }
+  });
+}
+
 function loadProject(input) {
   const file = input.files[0];
   if (!file) return;
@@ -451,6 +475,7 @@ function loadProject(input) {
       const loadedData = JSON.parse(e.target.result);
       if (Array.isArray(loadedData)) {
         equipments = loadedData;
+        migrateControlPointsToWaypoints();
         render();
         let fileName = file.name.replace(".json", "");
         if (fileName.includes("Synoptique_")) fileName = fileName.replace("Synoptique_", "");
@@ -576,6 +601,231 @@ document.getElementById("workspace-wrapper").addEventListener("scroll", function
 /* ==========================================================================
    LOGIQUE DE RENDU & CONNEXIONS
    ========================================================================== */
+
+/* --- Smart Routing : Collision Detection Utilities --- */
+
+/** Retourne les bounding boxes de tous les équipements sauf ceux exclus */
+function getEquipmentBBoxes(excludeIds = []) {
+  const MARGIN = 15;
+  return equipments
+    .filter(eq => !excludeIds.includes(eq.id))
+    .map(eq => {
+      const el = document.getElementById(eq.id);
+      const h = el ? el.offsetHeight : 120;
+      return { x: eq.x - MARGIN, y: eq.y - MARGIN, w: 160 + MARGIN * 2, h: h + MARGIN * 2 };
+    });
+}
+
+/** Vérifie si un segment (p1->p2) intersecte un rectangle (box) */
+function segmentIntersectsBox(p1, p2, box) {
+  const bx2 = box.x + box.w, by2 = box.y + box.h;
+  // Segment vertical
+  if (Math.abs(p1.x - p2.x) < 1) {
+    const x = p1.x;
+    if (x < box.x || x > bx2) return false;
+    const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+    return maxY > box.y && minY < by2;
+  }
+  // Segment horizontal
+  if (Math.abs(p1.y - p2.y) < 1) {
+    const y = p1.y;
+    if (y < box.y || y > by2) return false;
+    const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+    return maxX > box.x && minX < bx2;
+  }
+  // Segment diagonal : test par clipping (Liang-Barsky simplifié)
+  let t0 = 0, t1 = 1;
+  const dxx = p2.x - p1.x, dyy = p2.y - p1.y;
+  const edges = [
+    { p: -dxx, q: p1.x - box.x },
+    { p: dxx,  q: bx2 - p1.x },
+    { p: -dyy, q: p1.y - box.y },
+    { p: dyy,  q: by2 - p1.y }
+  ];
+  for (const { p, q } of edges) {
+    if (Math.abs(p) < 0.001) { if (q < 0) return false; }
+    else {
+      const r = q / p;
+      if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+      else       { if (r < t0) return false; if (r < t1) t1 = r; }
+    }
+  }
+  return t0 < t1;
+}
+
+/** Vérifie si un chemin complet (liste de points) traverse un obstacle */
+function checkPathCollision(points, boxes) {
+  for (let i = 0; i < points.length - 1; i++) {
+    for (const box of boxes) {
+      if (segmentIntersectsBox(points[i], points[i + 1], box)) return true;
+    }
+  }
+  return false;
+}
+
+/** Cherche un Y intermédiaire sûr (sans collision horizontale) */
+function findSafeY(startPos, endPos, boxes) {
+  const idealMidY = (startPos.y + endPos.y) / 2;
+  const minX = Math.min(startPos.x, endPos.x);
+  const maxX = Math.max(startPos.x, endPos.x);
+  const minBound = Math.min(startPos.y, endPos.y) + 20;
+  const maxBound = Math.max(startPos.y, endPos.y) - 20;
+
+  // Teste le midY idéal puis décale par pas de 20px
+  for (let offset = 0; offset < 500; offset += 20) {
+    for (const sign of [0, 1, -1]) {
+      const testY = idealMidY + offset * sign;
+      if (testY < minBound - 200 || testY > maxBound + 200) continue;
+      const p1 = { x: minX, y: testY }, p2 = { x: maxX, y: testY };
+      let collision = false;
+      for (const box of boxes) {
+        if (segmentIntersectsBox(p1, p2, box)) { collision = true; break; }
+      }
+      if (!collision) return testY;
+    }
+  }
+  return idealMidY; // Fallback
+}
+
+/** Cherche un X intermédiaire sûr (sans collision verticale) */
+function findSafeX(startPos, endPos, boxes) {
+  const idealMidX = (startPos.x + endPos.x) / 2;
+  const minY = Math.min(startPos.y, endPos.y);
+  const maxY = Math.max(startPos.y, endPos.y);
+
+  for (let offset = 0; offset < 500; offset += 20) {
+    for (const sign of [0, 1, -1]) {
+      const testX = idealMidX + offset * sign;
+      const p1 = { x: testX, y: minY }, p2 = { x: testX, y: maxY };
+      let collision = false;
+      for (const box of boxes) {
+        if (segmentIntersectsBox(p1, p2, box)) { collision = true; break; }
+      }
+      if (!collision) return testX;
+    }
+  }
+  return idealMidX;
+}
+
+/**
+ * Génère des waypoints avec routage intelligent (Smart Routing).
+ * 1. Calcule un chemin orthogonal de base
+ * 2. Vérifie les collisions avec les bounding boxes
+ * 3. Si collision, cherche un chemin alternatif qui contourne les obstacles
+ */
+function generateSmartWaypoints(startPos, endPos, sourcePort, excludeIds = []) {
+  const srcIdx = sourcePort !== undefined ? sourcePort : 12;
+  const dx = endPos.x - startPos.x;
+  const dy = endPos.y - startPos.y;
+  const boxes = getEquipmentBBoxes(excludeIds);
+
+  let waypoints;
+
+  // --- Bundle Offset : décalage en V (escalier) pour séparer les câbles ---
+  // Les câbles extrêmes descendent plus bas, le centre reste court → pas de croisement
+  const BUNDLE_SPACING = 10;
+  let bundleOffsetY = 0, bundleOffsetX = 0;
+  if (srcIdx >= 10 && srcIdx <= 14) {
+    bundleOffsetY = Math.abs(srcIdx - 12) * BUNDLE_SPACING;
+  } else if (srcIdx >= 0 && srcIdx <= 4) {
+    bundleOffsetY = Math.abs(srcIdx - 2) * BUNDLE_SPACING;
+  } else if (srcIdx >= 5 && srcIdx <= 9) {
+    bundleOffsetX = Math.abs(srcIdx - 7) * BUNDLE_SPACING;
+  } else if (srcIdx >= 15 && srcIdx <= 19) {
+    bundleOffsetX = Math.abs(srcIdx - 17) * BUNDLE_SPACING;
+  }
+
+  // --- Calcul du chemin orthogonal de base ---
+  if (srcIdx >= 10 && srcIdx <= 14) {
+    // BOTTOM : descente puis horizontal
+    const midY = startPos.y + Math.max(40, Math.abs(dy) * 0.5) + bundleOffsetY;
+    waypoints = [{ x: startPos.x, y: midY }, { x: endPos.x, y: midY }];
+  } else if (srcIdx >= 0 && srcIdx <= 4) {
+    // TOP : montée puis horizontal
+    const midY = startPos.y - Math.max(40, Math.abs(dy) * 0.5) + bundleOffsetY;
+    waypoints = [{ x: startPos.x, y: midY }, { x: endPos.x, y: midY }];
+  } else if (srcIdx >= 5 && srcIdx <= 9) {
+    // RIGHT : horizontal puis vertical
+    const midX = startPos.x + Math.max(40, Math.abs(dx) * 0.5) + bundleOffsetX;
+    waypoints = [{ x: midX, y: startPos.y }, { x: midX, y: endPos.y }];
+  } else if (srcIdx >= 15 && srcIdx <= 19) {
+    // LEFT : horizontal gauche puis vertical
+    const midX = startPos.x - Math.max(40, Math.abs(dx) * 0.5) + bundleOffsetX;
+    waypoints = [{ x: midX, y: startPos.y }, { x: midX, y: endPos.y }];
+  } else {
+    waypoints = [{ x: (startPos.x + endPos.x) / 2, y: (startPos.y + endPos.y) / 2 }];
+  }
+
+  // --- Vérification de collision ---
+  if (boxes.length === 0) return waypoints;
+
+  const fullPath = [startPos, ...waypoints, endPos];
+  if (!checkPathCollision(fullPath, boxes)) return waypoints;
+
+  // --- Collision détectée : chercher un chemin alternatif ---
+  if (srcIdx >= 10 && srcIdx <= 14 || srcIdx >= 0 && srcIdx <= 4) {
+    // Ports verticaux (BOTTOM/TOP) : chercher un midY sûr + bundle offset
+    const safeY = findSafeY(startPos, endPos, boxes) + bundleOffsetY;
+    waypoints = [{ x: startPos.x, y: safeY }, { x: endPos.x, y: safeY }];
+    // Revérifier
+    const newPath = [startPos, ...waypoints, endPos];
+    if (!checkPathCollision(newPath, boxes)) return waypoints;
+
+    // Toujours en collision : contournement en U (4 waypoints)
+    // Trouver le côté le plus libre (gauche ou droite)
+    const allBoxesMinX = Math.min(...boxes.map(b => b.x));
+    const allBoxesMaxX = Math.max(...boxes.map(b => b.x + b.w));
+    const goLeft = (startPos.x - allBoxesMinX) > (allBoxesMaxX - startPos.x);
+    const detourX = goLeft ? allBoxesMinX - 40 : allBoxesMaxX + 40;
+    return [
+      { x: startPos.x, y: safeY },
+      { x: detourX, y: safeY },
+      { x: detourX, y: endPos.y },
+      { x: endPos.x, y: endPos.y }
+    ];
+  } else {
+    // Ports horizontaux (LEFT/RIGHT) : chercher un midX sûr + bundle offset
+    const safeX = findSafeX(startPos, endPos, boxes) + bundleOffsetX;
+    waypoints = [{ x: safeX, y: startPos.y }, { x: safeX, y: endPos.y }];
+    const newPath = [startPos, ...waypoints, endPos];
+    if (!checkPathCollision(newPath, boxes)) return waypoints;
+
+    // Contournement en U vertical
+    const allBoxesMinY = Math.min(...boxes.map(b => b.y));
+    const allBoxesMaxY = Math.max(...boxes.map(b => b.y + b.h));
+    const goUp = (startPos.y - allBoxesMinY) > (allBoxesMaxY - startPos.y);
+    const detourY = goUp ? allBoxesMinY - 40 : allBoxesMaxY + 40;
+    return [
+      { x: safeX, y: startPos.y },
+      { x: safeX, y: detourY },
+      { x: endPos.x, y: detourY },
+      { x: endPos.x, y: endPos.y }
+    ];
+  }
+}
+
+/**
+ * Trouve l'index du segment le plus proche d'un point (x, y).
+ * points = liste ordonnée [start, ...waypoints, end]
+ * Retourne l'index i tel que le segment (points[i], points[i+1]) est le plus proche.
+ */
+function findClosestSegment(px, py, points) {
+  let bestDist = Infinity;
+  let bestIdx = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const ax = points[i].x, ay = points[i].y;
+    const bx = points[i + 1].x, by = points[i + 1].y;
+    const abx = bx - ax, aby = by - ay;
+    const len2 = abx * abx + aby * aby;
+    let t = len2 === 0 ? 0 : ((px - ax) * abx + (py - ay) * aby) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const cx = ax + t * abx, cy = ay + t * aby;
+    const dist = Math.hypot(px - cx, py - cy);
+    if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
 function updateConnectionsOnly() {
   const layer = document.getElementById("connections-layer");
   layer.innerHTML = "";
@@ -608,21 +858,16 @@ function updateConnectionsOnly() {
         const endX = endPos.x;
         const endY = endPos.y;
 
-        // Initialiser les points de contrôle s'ils n'existent pas
-        const midX = (startX + endX) / 2;
-        const midY = (startY + endY) / 2;
-        
-        if (!eq.controlPoints || eq.controlPoints.length !== 3) {
-          eq.controlPoints = [
-            { x: startX + (midX - startX) * 0.3, y: startY + (midY - startY) * 0.3 },
-            { x: midX, y: midY },
-            { x: endX - (endX - midX) * 0.3, y: endY - (endY - midY) * 0.3 }
-          ];
+        // Initialiser les waypoints s'ils n'existent pas (routage orthogonal auto)
+        if (!eq.waypoints) {
+          eq.waypoints = generateSmartWaypoints(startPos, endPos, eq.sourcePort, [eq.id, eq.parent]);
         }
 
-        // Utiliser les points de contrôle personnalisés
-        const cp = eq.controlPoints;
-        const pathData = `M ${startX} ${startY} L ${cp[0].x} ${cp[0].y} L ${cp[1].x} ${cp[1].y} L ${cp[2].x} ${cp[2].y} L ${endX} ${endY}`;
+        // Construire le path SVG dynamique à partir des waypoints
+        const wp = eq.waypoints;
+        let pathData = `M ${startX} ${startY}`;
+        wp.forEach(p => { pathData += ` L ${p.x} ${p.y}`; });
+        pathData += ` L ${endX} ${endY}`;
         const style = eq.connectionStyle || { color: "#007AFF", width: 2, dasharray: "" };
 
         const visiblePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -644,8 +889,34 @@ function updateConnectionsOnly() {
         hitAreaPath.style.cursor = "pointer";
         
         // Clic gauche : sélectionner et afficher les poignées
-        hitAreaPath.addEventListener("click", (e) => {
+        // + Split segment : mousedown sur un segment crée un nouveau waypoint
+        hitAreaPath.addEventListener("mousedown", (e) => {
+          if (e.button !== 0) return; // gauche uniquement
           e.stopPropagation();
+
+          // Si ce lien est déjà sélectionné, tenter un split segment
+          if (selectedConnectionId === eq.id && eq.waypoints) {
+            const container = document.getElementById("workspace-container");
+            const rect = container.getBoundingClientRect();
+            const mx = (e.clientX - rect.left) / currentZoom;
+            const my = (e.clientY - rect.top) / currentZoom;
+
+            // Construire la liste complète des points du chemin
+            const allPts = [{ x: startX, y: startY }, ...eq.waypoints, { x: endX, y: endY }];
+            const segIdx = findClosestSegment(mx, my, allPts);
+
+            // Vérifier qu'on n'est pas trop près d'une poignée existante
+            const nearHandle = eq.waypoints.some(p => Math.hypot(p.x - mx, p.y - my) < 15);
+            if (!nearHandle) {
+              // Insérer un nouveau waypoint sur ce segment
+              eq.waypoints.splice(segIdx, 0, { x: mx, y: my });
+              updateConnectionsOnly();
+              // Lancer le drag immédiat du nouveau point
+              startDraggingHandle(eq.id, segIdx, e);
+              return;
+            }
+          }
+
           selectConnection(eq.id, visiblePath, e);
         });
         
@@ -738,9 +1009,9 @@ function updateConnectionsOnly() {
    NOUVEAU : POIGNÉES DE CONTRÔLE POUR MODIFIER LA FORME DES LIENS
    ========================================================================== */
 function drawControlHandles(equipment, svg) {
-  if (!equipment.controlPoints || equipment.controlPoints.length !== 3) return;
+  if (!equipment.waypoints || equipment.waypoints.length === 0) return;
 
-  equipment.controlPoints.forEach((cp, index) => {
+  equipment.waypoints.forEach((cp, index) => {
     const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     handle.setAttribute("cx", cp.x);
     handle.setAttribute("cy", cp.y);
@@ -784,9 +1055,9 @@ function startDraggingHandle(equipmentId, handleIndex, e) {
     const y = (moveEvent.clientY - rect.top) / currentZoom;
 
     const eq = equipments.find(e => e.id === equipmentId);
-    if (eq && eq.controlPoints && eq.controlPoints[handleIndex]) {
-      eq.controlPoints[handleIndex].x = x;
-      eq.controlPoints[handleIndex].y = y;
+    if (eq && eq.waypoints && eq.waypoints[handleIndex]) {
+      eq.waypoints[handleIndex].x = x;
+      eq.waypoints[handleIndex].y = y;
       updateConnectionsOnly();
       markAsUnsaved();
     }
@@ -934,7 +1205,7 @@ function startDraggingPortHandle(equipmentId, endType, e) {
         }
         
         // Réinitialiser les points de contrôle
-        delete eq.controlPoints;
+        delete eq.waypoints;
         
         markAsUnsaved();
         updateConnectionsOnly();
@@ -1188,8 +1459,15 @@ function finishLinkCreation(sourceId, sourcePort, targetId, targetPort) {
     targetEq.sourcePort = sourcePort; // Le port du parent (Source)
     targetEq.targetPort = targetPort; // Le port de l'enfant (Target)
     
-    // Réinitialiser le style de courbe pour qu'il soit recalculé proprement
-    delete targetEq.controlPoints;
+    // Générer des waypoints orthogonaux pour le nouveau lien
+    const srcEq = equipments.find(e => e.id === sourceId);
+    if (srcEq) {
+      const startPos = getPortPosition(srcEq, sourcePort);
+      const endPos = getPortPosition(targetEq, targetPort);
+      targetEq.waypoints = generateSmartWaypoints(startPos, endPos, sourcePort, [targetId, sourceId]);
+    } else {
+      delete targetEq.waypoints;
+    }
 
     saveState();
     render();
@@ -1217,7 +1495,7 @@ function startDrag(e) {
 
   if (multiSelectedIds.includes(activeDragId)) {
     multiDragInitialPositions = {};
-    multiDragControlPoints = {}; // Réinitialiser
+    multiDragWaypoints = {}; // Réinitialiser
 
     multiSelectedIds.forEach((id) => {
       const equipment = equipments.find((e) => e.id === id);
@@ -1227,15 +1505,15 @@ function startDrag(e) {
 
         // 2. NEW : Sauver la position des points de contrôle (si le lien bouge aussi)
         // On ne le fait que si l'équipement a un parent qui est AUSSI sélectionné
-        if (equipment.parent && multiSelectedIds.includes(equipment.parent) && equipment.controlPoints) {
+        if (equipment.parent && multiSelectedIds.includes(equipment.parent) && equipment.waypoints) {
             // On fait une copie profonde du tableau pour ne pas modifier la référence
-            multiDragControlPoints[id] = equipment.controlPoints.map(p => ({ x: p.x, y: p.y }));
+            multiDragWaypoints[id] = equipment.waypoints.map(p => ({ x: p.x, y: p.y }));
         }
       }
     });
   } else {
     multiDragInitialPositions = {};
-    multiDragControlPoints = {};
+    multiDragWaypoints = {};
   }
 
   document.addEventListener("mousemove", onDrag);
@@ -1279,8 +1557,8 @@ function onDrag(e) {
         if (el) { el.style.left = eq.x + "px"; el.style.top = eq.y + "px"; }
 
         // --- NEW : Déplacer aussi les points de contrôle (courbes) ---
-        if (multiDragControlPoints[id]) {
-            eq.controlPoints = multiDragControlPoints[id].map(p => ({
+        if (multiDragWaypoints[id]) {
+            eq.waypoints = multiDragWaypoints[id].map(p => ({
                 x: p.x + effectiveMoveX,
                 y: p.y + effectiveMoveY
             }));
@@ -1607,7 +1885,7 @@ function addEquipment() {
   else {
     const radioMode = document.getElementById("radioMode").value;
     let quantity = parseInt(document.getElementById("newQuantity").value) || 1;
-    if (quantity > 20) quantity = 20;
+    if (quantity > 5) quantity = 5;
     
     // Position par défaut
     let scrollX = (document.getElementById("workspace-wrapper").scrollLeft + 200) / currentZoom;
@@ -1670,53 +1948,129 @@ function addEquipment() {
           alert(`Plus de noms/IPs disponibles`);
           return;
         }
-        
-        const SPACING_X = 250; 
-        const FIXED_Y_OFFSET = 200; 
+
+        const SPACING_X = 250;
+        const FIXED_Y_OFFSET = 250;
+        const NODE_WIDTH = 160;
+        const n = equipData.length;
 
         let startX = scrollX;
         let startY = scrollY;
 
-        if (parent) {
-            const parentNode = equipments.find(e => e.id === parent);
-            if (parentNode) {
-                startY = parentNode.y + FIXED_Y_OFFSET;
-                const totalRowWidth = (equipData.length - 1) * SPACING_X;
-                startX = parentNode.x - (totalRowWidth / 2);
-                
-                // --- SÉCURITÉ BORDS ---
-                // Si le calcul place le premier élément hors champ à gauche (< 50px)
-                // On force le démarrage à 50px.
-                if (startX < 50) {
-                    startX = 50; 
+        const parentNode = parent ? equipments.find(e => e.id === parent) : null;
+
+        if (parentNode) {
+            startY = parentNode.y + FIXED_Y_OFFSET;
+            const totalRowWidth = (n - 1) * SPACING_X;
+            startX = parentNode.x + NODE_WIDTH / 2 - totalRowWidth / 2;
+            if (startX < 50) startX = 50;
+        } else {
+            equipments.forEach((eq) => {
+                if (Math.abs(eq.x - startX) < 50 && Math.abs(eq.y - startY) < 50) {
+                    startY += 100;
                 }
-                // ----------------------
-            }
+            });
         }
 
-        equipments.forEach((eq) => {
-             // Petite correction pour éviter superposition si on ajoute au même endroit sans parent
-             if (!parent && Math.abs(eq.x - startX) < 50 && Math.abs(eq.y - startY) < 50) {
-                 startY += 100; // On décale vers le bas si conflit
-             }
+        // 1. MAPPING HYBRIDE (CÔTÉS + BAS)
+        const hybridPortsMap = {
+          2: [17, 7],                // Tout sur les côtés
+          3: [17, 12, 7],            // Gauche, Bas-Centre, Droite
+          4: [17, 10, 14, 7],        // Gauche, Bas-G, Bas-D, Droite
+          5: [17, 10, 12, 14, 7]     // Le complet
+        };
+        const assignedPorts = hybridPortsMap[n] || [10, 11, 12, 13, 14].slice(0, n);
+
+        // Phase 1 : Création des enfants
+        const newChildIds = [];
+        equipData.forEach((data, index) => {
+          const childX = startX + (index * SPACING_X);
+          const childY = startY;
+          const newId = "eq-" + Date.now() + Math.random().toString(36).substr(2, 5);
+
+          const eq = {
+            id: newId, type: type, deviceName: data.name, ip: data.ip,
+            loc: locPE, parent: parent, x: childX, y: childY,
+            targetPort: 2 // Arrivée toujours sur le dessus
+          };
+          equipments.push(eq);
+          newChildIds.push(newId);
         });
 
-        equipData.forEach((data, index) => {
-          const x = startX + (index * SPACING_X);
-          const y = startY;
-          addSingleNode(type, data.name, data.ip, locPE, parent, x, y);
-        });
-        
-        showToast(`${equipData.length} équipements ajoutés !`);
+        // Phase 2 : Calcul HYBRIDE + PYRAMIDE "V"
+        if (parentNode) {
+          const parentEl = document.getElementById(parentNode.id);
+          const parentH = parentEl ? parentEl.offsetHeight : 120;
+          const parentBottomY = parentNode.y + parentH;
+          
+          // Tri visuel
+          const sortedChildren = newChildIds
+            .map(id => equipments.find(e => e.id === id))
+            .sort((a, b) => a.x - b.x);
+
+          // Paramètres
+          const BASE_GAP = 30;     // Niveau le plus haut (pour les côtés)
+          const STEP_Y = 25;       // Espace ajouté pour chaque niveau vers le bas
+          const centerIndex = (n - 1) / 2;
+          const maxDist = Math.floor(n / 2); // ex: 2 pour 5 éléments
+
+          sortedChildren.forEach((child, index) => {
+            // A. Attribution du port
+            const srcPort = assignedPorts[index];
+            child.sourcePort = srcPort;
+
+            const startPos = getPortPosition(parentNode, srcPort);
+            const endPos = getPortPosition(child, 2); 
+
+            // B. Calcul de la hauteur en "V"
+            // Plus on est proche du centre (dist petite), plus on descend bas (facteur grand)
+            // Plus on est au bord (dist grande), plus on reste haut (facteur petit)
+            const distFromCenter = Math.abs(index - centerIndex);
+            
+            // Inversion de la logique précédente :
+            // Dist 2 (Bord) -> Ajout 0 -> Niveau Haut
+            // Dist 0 (Centre) -> Ajout Max -> Niveau Bas
+            const depthFactor = maxDist - distFromCenter; 
+            
+            const levelY = parentBottomY + BASE_GAP + (depthFactor * STEP_Y);
+
+            // C. Construction des Waypoints
+            
+            // CAS 1 : Ports Latéraux (17=Gauche, 7=Droite)
+            if (srcPort === 17 || srcPort === 7) {
+                const sideDir = (srcPort === 17) ? -1 : 1;
+                const escapeDist = 30; 
+                
+                child.waypoints = [
+                    // 1. On sort horizontalement
+                    { x: startPos.x + (escapeDist * sideDir), y: startPos.y }, 
+                    // 2. On descend à notre niveau (qui est HAUT dans cette logique)
+                    { x: startPos.x + (escapeDist * sideDir), y: levelY },     
+                    // 3. On file vers l'enfant
+                    { x: endPos.x, y: levelY }                     
+                ];
+            } 
+            // CAS 2 : Ports du Bas
+            else {
+                child.waypoints = [
+                    // 1. On descend jusqu'au niveau (qui est BAS pour le centre)
+                    { x: startPos.x, y: levelY },
+                    // 2. On file vers l'enfant
+                    { x: endPos.x, y: levelY }
+                ];
+            }
+          });
+        }
+
+        showToast(`${n} équipements ajoutés !`);
       } 
       else {
-        // Sécurité Ajout Unique
         let safeX = Math.max(50, scrollX);
         addSingleNode(type, deviceName, ip, locPE, parent, safeX, scrollY);
         showToast("Équipement ajouté !");
       }
     }
-  }
+   }
   
   markAsUnsaved();
   selectedEquipmentId = null;
@@ -1865,9 +2219,9 @@ function processBulkDelete(start, end) {
       if (idsToDelete.includes(eq.id)) return;
 
       // Si l'équipement a un parent (donc un lien) ET des points de contrôle
-      if (eq.parent && eq.controlPoints) {
+      if (eq.parent && eq.waypoints) {
           // On vérifie si UN des 3 points de contrôle est dans le carré rouge
-          const isLinkSelected = eq.controlPoints.some(p => 
+          const isLinkSelected = eq.waypoints.some(p => 
               p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY
           );
 
@@ -1876,7 +2230,7 @@ function processBulkDelete(start, end) {
               eq.parent = null;
               delete eq.sourcePort;
               delete eq.targetPort;
-              delete eq.controlPoints;
+              delete eq.waypoints;
               delete eq.connectionStyle;
               linksDeletedCount++;
           }
@@ -2065,8 +2419,10 @@ function reformatConnection() {
   childEq.sourcePort = sourcePort;
   childEq.targetPort = targetPort;
   
-  // Générer des points de contrôle propres
-  childEq.controlPoints = generateCleanControlPointsForReformat(parentEq, childEq);
+  // Générer des waypoints orthogonaux propres
+  const startPos = getPortPosition(parentEq, sourcePort);
+  const endPos = getPortPosition(childEq, targetPort);
+  childEq.waypoints = generateSmartWaypoints(startPos, endPos, sourcePort, [childEq.id, childEq.parent]);
   
   markAsUnsaved();
   saveState()
@@ -2145,65 +2501,6 @@ function calculateOptimalPortsForReformat(parentNode, childNode, totalChildren, 
   }
   
   return { sourcePort, targetPort };
-}
-
-/**
- * Génère des points de contrôle propres pour le reformatage
- * Crée des lignes droites en _|_ sans chevauchement
- */
-/* CORRECTION DE LA LOGIQUE DE REFORMATAGE */
-function generateCleanControlPointsForReformat(parentNode, childNode) {
-  // On s'assure d'avoir des ports par défaut si indéfinis
-  const srcPortIdx = childNode.sourcePort !== undefined ? childNode.sourcePort : 12;
-  const tgtPortIdx = childNode.targetPort !== undefined ? childNode.targetPort : 2;
-
-  const sourcePos = getPortPosition(parentNode, srcPortIdx);
-  const targetPos = getPortPosition(childNode, tgtPortIdx);
-  
-  const deltaY = targetPos.y - sourcePos.y;
-  const deltaX = targetPos.x - sourcePos.x;
-  
-  // BOTTOM (Ports 10 à 14) : Descente verticale puis horizontale
-  if (srcPortIdx >= 10 && srcPortIdx <= 14) {
-    // On descend de 60% de la distance ou au moins 40px
-    const verticalDrop = Math.max(40, Math.abs(deltaY) * 0.5); 
-    const midY = sourcePos.y + verticalDrop;
-    
-    return [
-      { x: sourcePos.x, y: midY },      // Point 1 : Descend tout droit
-      { x: targetPos.x, y: midY },      // Point 2 : Va à l'horizontale vers la cible
-      { x: targetPos.x, y: targetPos.y } // Point 3 : Arrive à la cible
-    ];
-  }
-  // RIGHT (Ports 5 à 9)
-  else if (srcPortIdx >= 5 && srcPortIdx <= 9) {
-    const horizontalOut = 60;
-    const midY = sourcePos.y + (deltaY * 0.5);
-    return [
-      { x: sourcePos.x + horizontalOut, y: sourcePos.y },
-      { x: sourcePos.x + horizontalOut, y: midY },
-      { x: targetPos.x, y: targetPos.y }
-    ];
-  }
-  // LEFT (Ports 15 à 19)
-  else if (srcPortIdx >= 15 && srcPortIdx <= 19) {
-    const horizontalOut = 60;
-    const midY = sourcePos.y + (deltaY * 0.5);
-    return [
-      { x: sourcePos.x - horizontalOut, y: sourcePos.y },
-      { x: sourcePos.x - horizontalOut, y: midY },
-      { x: targetPos.x, y: targetPos.y }
-    ];
-  }
-  // TOP (Ports 0 à 4)
-  else {
-    const midY = sourcePos.y - 60;
-    return [
-      { x: sourcePos.x, y: midY },
-      { x: targetPos.x, y: midY },
-      { x: targetPos.x, y: targetPos.y }
-    ];
-  }
 }
 
 /* ==========================================================================
@@ -2590,7 +2887,7 @@ function onOrangeUp(e) {
       }
 
       // Reset de la courbe bleue pour qu'elle se redessine proprement
-      delete eq.controlPoints;
+      delete eq.waypoints;
       
       saveState();
       render();
@@ -2621,81 +2918,256 @@ function clearBrowserSave() {
 }
 
 /* ==========================================================================
-   GESTION COPIER / COLLER (CTRL+C / CTRL+V)
+   GESTION DE L'AIDE (MODALE)
    ========================================================================== */
 
-// Variable globale pour stocker l'objet copié
+function toggleHelp() {
+    const modal = document.getElementById("helpModal");
+    
+    // Si elle est cachée (none) ou vide, on l'affiche (flex)
+    if (modal.style.display === "none" || modal.style.display === "") {
+        modal.style.display = "flex";
+    } else {
+        modal.style.display = "none";
+    }
+}
+
+// Fonction bonus : Fermer si on clique sur le fond gris (l'overlay)
+function closeHelpOnOutsideClick(e) {
+    if (e.target.id === "helpModal") {
+        toggleHelp();
+    }
+}
+
+/* ==========================================================================
+   GESTIONNAIRE CLAVIER UNIFIÉ (ECHAP, SUPPR, COPIER, COLLER)
+   ========================================================================== */
+
+// Variable pour le Copier/Coller
 let memoireTampon = null; 
 
 document.addEventListener('keydown', function(e) {
-    // 1. SÉCURITÉ : On ne fait rien si l'utilisateur écrit dans un champ texte
+    
+    // 1. SÉCURITÉ : On ignore si on écrit dans un champ texte
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
 
-    // --- CTRL + C (COPIER) ---
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-        if (selectedEquipmentId) {
-            const eq = equipments.find(item => item.id === selectedEquipmentId);
+    // console.log("Touche :", e.key); // Décommentez pour tester
+
+    // ----------------------------------------------------------------------
+    // A. TOUCHE ECHAP (Fermer fenêtres / Désélectionner)
+    // ----------------------------------------------------------------------
+    if (e.key === "Escape") {
+        const helpModal = document.getElementById("helpModal");
+        const addModal = document.getElementById("addModal");
+        
+        // Ferme les modales si elles sont ouvertes
+        if (helpModal && helpModal.style.display === "flex") toggleHelp();
+        if (addModal && addModal.style.display === "flex") closeAddModal();
+        
+        // Désélectionne tout
+        deselectAll();
+        if (typeof clearMultiSelection === 'function') clearMultiSelection();
+    }
+
+    // ----------------------------------------------------------------------
+    // B. TOUCHE SUPPR / BACKSPACE (Supprimer sélection)
+    // ----------------------------------------------------------------------
+    if (e.key === "Delete" || e.key === "Backspace") {
+        let itemsToDelete = [];
+
+        // Cas 1 : Multi-sélection
+        if (typeof multiSelectedIds !== 'undefined' && multiSelectedIds.length > 0) {
+            itemsToDelete = [...multiSelectedIds];
+        } 
+        // Cas 2 : Sélection unique
+        else if (selectedEquipmentId) {
+            itemsToDelete = [selectedEquipmentId];
+        }
+
+        if (itemsToDelete.length > 0) {
+            e.preventDefault(); 
             
-            if (eq) {
-                e.preventDefault();
-                // On copie les données dans la mémoire
-                memoireTampon = {
-                    type: eq.type,
-                    deviceName: eq.deviceName + " (Copie)", // On ajoute "Copie" au nom
-                    ip: eq.ip,
-                    loc: eq.loc,
-                    // Mettez 'null' ci-dessous si vous voulez que la copie soit détachée (sans fil)
-                    parent: eq.parent, 
-                    photo: eq.photo || null 
-                };
-                showToast("📋 Équipement copié !");
+            // On demande confirmation
+            if (confirm(`Supprimer ${itemsToDelete.length} élément(s) ?`)) {
+                
+                // --- ETAPE 1 : NETTOYAGE VISUEL FORCÉ (C'est ça qui corrige votre bug) ---
+                itemsToDelete.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.remove(); // On l'arrache du HTML directement
+                });
+
+                // --- ETAPE 2 : NETTOYAGE DES DONNÉES ---
+                // On garde seulement ceux qui NE SONT PAS dans la liste à supprimer
+                equipments = equipments.filter(eq => !itemsToDelete.includes(eq.id));
+                
+                // On nettoie les liens des orphelins (ceux qui étaient connectés aux objets supprimés)
+                equipments.forEach(eq => {
+                    if (itemsToDelete.includes(eq.parent)) {
+                        eq.parent = null;
+                        delete eq.connectionStyle;
+                        delete eq.waypoints;
+                        delete eq.sourcePort; // Important de nettoyer les ports aussi
+                        delete eq.targetPort;
+                    }
+                    // Nettoyage inverse (si l'objet supprimé était un enfant)
+                    if (itemsToDelete.includes(eq.id)) {
+                         // Rien à faire ici car l'objet eq est déjà filtré au dessus
+                    }
+                });
+
+                // --- ETAPE 3 : FINALISATION ---
+                deselectAll();
+                if (typeof clearMultiSelection === 'function') clearMultiSelection();
+                
+                // On force le redessin des liens (car les objets ont disparu, les traits doivent disparaitre aussi)
+                updateConnectionsOnly(); 
+                
+                saveState();
+                render(); // Redessine tout proprement pour être sûr
+                markAsUnsaved();
+                showToast("🗑️ Élément(s) supprimé(s)");
             }
         }
     }
 
-    // --- CTRL + V (COLLER) ---
+    // ----------------------------------------------------------------------
+    // C. CTRL + C (COPIER)
+    // ----------------------------------------------------------------------
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        if (selectedEquipmentId) {
+            const eq = equipments.find(item => item.id === selectedEquipmentId);
+            if (eq) {
+                e.preventDefault();
+                memoireTampon = {
+                    type: eq.type,
+                    deviceName: eq.deviceName + " (Copie)",
+                    ip: eq.ip,
+                    loc: eq.loc,
+                    parent: eq.parent, 
+                    photo: eq.photo || null 
+                };
+                showToast("📋 Copié !");
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // D. CTRL + V (COLLER)
+    // ----------------------------------------------------------------------
     if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
         if (memoireTampon) {
             e.preventDefault();
 
-            // On calcule le centre de l'écran pour coller l'objet là où on regarde
+            // Calcul du centre de l'écran
             const wrapper = document.getElementById("workspace-wrapper");
-            // wrapper.scrollLeft = position de la barre de défilement horizontale
-            // + 300 = décalage pour être à peu près au milieu
             const centerX = (wrapper.scrollLeft + 300) / currentZoom; 
             const centerY = (wrapper.scrollTop + 300) / currentZoom;
 
-            // Création de l'objet via votre fonction existante
+            // Création
             const newId = addSingleNode(
                 memoireTampon.type,
                 memoireTampon.deviceName,
                 memoireTampon.ip,
                 memoireTampon.loc,
                 memoireTampon.parent, 
-                centerX, // Position X calculée
-                centerY  // Position Y calculée
+                centerX, 
+                centerY 
             );
 
-            // Gestion de la photo (car addSingleNode ne la gère pas par défaut)
+            // Gestion Photo
             if (memoireTampon.photo) {
                 const newEq = equipments.find(e => e.id === newId);
-                if (newEq) {
-                    newEq.photo = memoireTampon.photo;
-                }
+                if (newEq) newEq.photo = memoireTampon.photo;
             }
 
-            // Sauvegarde et affichage
+            // Finalisation
             saveState();       
             render();          
             markAsUnsaved();   
             
-            // On sélectionne automatiquement le nouvel objet
+            // Sélection du nouvel objet
             deselectAll();
             selectedEquipmentId = newId;
-            // On force un petit render pour afficher le cadre bleu de sélection
             setTimeout(render, 50); 
             
-            showToast("📋 Élément collé !");
+            showToast("📋 Collé !");
         }
     }
 });
+
+// --- PARTICULES BLEUES LOGIN ---
+function createParticles() {
+  const container = document.getElementById('particles-container');
+  if (!container) return;
+  
+  const particleCount = 25;
+  
+  for (let i = 0; i < particleCount; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.animationDelay = Math.random() * 12 + 's';
+    particle.style.animationDuration = (8 + Math.random() * 8) + 's';
+    const size = 3 + Math.random() * 5;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+    container.appendChild(particle);
+  }
+}
+
+createParticles();
+
+/* ==========================================================================
+   MENU CONTEXTUEL (CLIC DROIT SUR LE FOND)
+   ========================================================================== */
+
+// On écoute le clic droit sur la zone de travail
+document.getElementById("workspace-container").addEventListener("contextmenu", function(e) {
+    
+    // 1. Si on clique sur un équipement ou un lien, on laisse le menu spécifique (ou rien)
+    if (e.target.closest(".node") || e.target.tagName === "path" || e.target.closest("circle")) {
+        return; // On ne fait rien, c'est géré ailleurs
+    }
+
+    // 2. On empêche le menu du navigateur
+    e.preventDefault();
+
+    // 3. Calcul de la position exacte dans le plan (pour créer l'objet au bon endroit)
+    // On doit compenser le scroll et le zoom pour savoir où est la souris DANS le monde virtuel
+    const container = document.getElementById("workspace-container");
+    const rect = container.getBoundingClientRect();
+    
+    // Coordonnées relatives au canvas zoomé
+    const rawX = e.clientX - rect.left; 
+    const rawY = e.clientY - rect.top;
+
+    // On stocke ces valeurs dans les variables globales que "addEquipment" utilise déjà
+    suggestedX = rawX / currentZoom;
+    suggestedY = rawY / currentZoom;
+
+    // 4. Affichage du menu visuel (Positionné par rapport à l'écran)
+    const menu = document.getElementById("workspaceContextMenu");
+    menu.style.display = "block";
+    menu.style.left = e.clientX + "px";
+    menu.style.top = e.clientY + "px";
+
+    // 5. Fermeture automatique si on clique ailleurs
+    const closeMenu = () => {
+        menu.style.display = "none";
+        document.removeEventListener("click", closeMenu);
+    };
+    // Petit délai pour éviter que le clic droit ne ferme le menu immédiatement
+    setTimeout(() => document.addEventListener("click", closeMenu), 50);
+});
+
+// Fonction déclenchée par le bouton "Ajouter ici"
+function openAddModalFromContext() {
+    // On ferme le menu contextuel
+    document.getElementById("workspaceContextMenu").style.display = "none";
+    
+    // On ouvre la modale d'ajout classique
+    openAddModal();
+    
+    // Feedback visuel (optionnel)
+    console.log(`Préparation ajout en X:${Math.round(suggestedX)} Y:${Math.round(suggestedY)}`);
+}
